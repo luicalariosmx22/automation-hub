@@ -13,14 +13,34 @@ automation-hub/
 │       │   ├── __init__.py
 │       │   ├── settings.py    # Configuración desde env vars
 │       │   └── logging.py     # Setup de logging
+│       ├── db/
+│       │   ├── __init__.py
+│       │   ├── supabase_client.py
+│       │   └── repositories/
+│       │       ├── __init__.py
+│       │       ├── gbp_locations_repo.py
+│       │       ├── gbp_reviews_repo.py
+│       │       └── gbp_metrics_repo.py
+│       ├── integrations/
+│       │   ├── __init__.py
+│       │   ├── google/
+│       │   │   ├── __init__.py
+│       │   │   └── oauth.py
+│       │   └── gbp/
+│       │       ├── __init__.py
+│       │       ├── reviews_v4.py
+│       │       └── performance_v1.py
 │       ├── jobs/
 │       │   ├── __init__.py
-│       │   └── registry.py    # Registro de jobs
+│       │   ├── registry.py    # Registro de jobs
+│       │   ├── gbp_reviews_daily.py
+│       │   └── gbp_metrics_daily.py
 │       └── runners/
 │           ├── __init__.py
 │           └── run_job.py     # CLI para ejecutar jobs
 ├── .env.example
 ├── .gitignore
+├── requirements.txt
 └── README.md
 ```
 
@@ -47,7 +67,7 @@ python -m venv venv
 3. **Instalar dependencias:**
 
 ```bash
-pip install -e .
+pip install -r requirements.txt
 ```
 
 4. **Configurar variables de entorno:**
@@ -59,10 +79,27 @@ cp .env.example .env
 
 ## Uso
 
+### Jobs Disponibles
+
+El sistema incluye los siguientes jobs:
+
+- **`gbp.reviews.daily`**: Sincroniza reviews de Google Business Profile
+- **`gbp.metrics.daily`**: Sincroniza métricas diarias de GBP
+
 ### Ejecutar un Job
 
 ```bash
-python -m automation_hub.runners.run_job <job_name>
+PYTHONPATH=src python -m automation_hub.runners.run_job <job_name>
+```
+
+Ejemplos:
+
+```bash
+# Sincronizar reviews
+PYTHONPATH=src python -m automation_hub.runners.run_job gbp.reviews.daily
+
+# Sincronizar métricas
+PYTHONPATH=src python -m automation_hub.runners.run_job gbp.metrics.daily
 ```
 
 ### Listar Jobs Disponibles
@@ -70,7 +107,7 @@ python -m automation_hub.runners.run_job <job_name>
 Si no hay jobs registrados o se proporciona un nombre inválido, el runner mostrará la lista de jobs disponibles:
 
 ```bash
-python -m automation_hub.runners.run_job
+PYTHONPATH=src python -m automation_hub.runners.run_job
 ```
 
 ### Exit Codes
@@ -98,13 +135,48 @@ register_job("mi_job", mi_job)
 
 Consulta `.env.example` para ver todas las variables disponibles:
 
+### Configuración General
 - `LOG_LEVEL`: Nivel de logging (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `ENVIRONMENT`: Entorno de ejecución (development, production, etc.)
 - `TZ`: Zona horaria (default: UTC)
 
+### Supabase (requerido para jobs GBP)
+- `SUPABASE_URL`: URL del proyecto Supabase
+- `SUPABASE_KEY`: API key de Supabase
+
+### Google OAuth (requerido para jobs GBP)
+- `GOOGLE_CLIENT_ID`: Client ID de Google Cloud
+- `GOOGLE_CLIENT_SECRET`: Client Secret de Google Cloud
+- `GBP_REFRESH_TOKEN`: Refresh token de OAuth
+
+### GBP Jobs (opcional)
+- `GBP_NOMBRE_NORA`: Filtro por tenant (opcional)
+- `GBP_METRICS`: Métricas a obtener (default: `WEBSITE_CLICKS,CALL_CLICKS`)
+- `GBP_DAYS_BACK`: Días hacia atrás para métricas (default: 30)
+
 ## Desarrollo
 
-El proyecto está estructurado para soportar múltiples jobs de forma escalable. Cada job es simplemente una función callable registrada en el sistema.
+El proyecto está estructurado para soportar múltiples jobs de forma escalable.
+
+### Estructura de un Job
+
+Cada job debe:
+1. Definir `JOB_NAME` como constante
+2. Implementar función `run(ctx=None)`
+3. Manejar logging apropiadamente
+4. Registrarse en `registry.py`
+
+### Jobs GBP Implementados
+
+**`gbp.reviews.daily`**: Sincroniza reviews de Google Business Profile
+- Lee locaciones activas desde Supabase
+- Descarga reviews usando GBP API v4
+- Inserta/actualiza en tabla `gbp_reviews`
+
+**`gbp.metrics.daily`**: Sincroniza métricas diarias de GBP
+- Lee locaciones activas desde Supabase
+- Descarga métricas usando Performance API v1
+- Inserta/actualiza en tabla `gbp_metrics_daily`
 
 ## Licencia
 

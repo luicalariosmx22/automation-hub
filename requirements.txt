@@ -1,0 +1,13 @@
+# Dependencias para automation-hub
+
+# HTTP requests
+requests>=2.31.0
+
+# Google Authentication
+google-auth>=2.29.0
+
+# Supabase client
+supabase>=2.6.0
+
+# Environment variables
+python-dotenv>=1.0.1

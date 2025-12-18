@@ -10,6 +10,21 @@ logger = logging.getLogger(__name__)
 _JOB_REGISTRY: Dict[str, Callable] = {}
 
 
+def _register_default_jobs():
+    """Registra los jobs por defecto del sistema."""
+    try:
+        from automation_hub.jobs import gbp_reviews_daily, gbp_metrics_daily
+        
+        register_job(gbp_reviews_daily.JOB_NAME, gbp_reviews_daily.run)
+        register_job(gbp_metrics_daily.JOB_NAME, gbp_metrics_daily.run)
+    except ImportError as e:
+        logger.warning(f"No se pudieron importar algunos jobs: {e}")
+
+
+# Registrar jobs al importar el módulo
+_register_default_jobs()
+
+
 def register_job(name: str, job_func: Callable) -> None:
     """
     Registra un job en el sistema.

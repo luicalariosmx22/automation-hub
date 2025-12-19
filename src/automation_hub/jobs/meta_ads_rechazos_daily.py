@@ -6,6 +6,7 @@ from collections import defaultdict
 from automation_hub.db.supabase_client import create_client_from_env
 from automation_hub.db.repositories.meta_ads_anuncios_repo import fetch_anuncios_rechazados_recientes
 from automation_hub.db.repositories.alertas_repo import crear_alerta
+from automation_hub.integrations.telegram.notifier import notificar_alerta_telegram
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +87,22 @@ def run(ctx=None):
                     "job_name": JOB_NAME
                 },
                 prioridad="alta"  # Rechazos son prioritarios
+            )
+            
+            # Notificar por Telegram
+            notificar_alerta_telegram(
+                nombre="🚨 Anuncios Rechazados Meta Ads",
+                descripcion=descripcion,
+                prioridad="alta",
+                datos={
+                    "Cliente": nombre_nora,
+                    "Total Rechazados": len(anuncios),
+                    "Disapproved": por_estado.get("DISAPPROVED", 0),
+                    "With Issues": por_estado.get("WITH_ISSUES", 0)
+                },
+                nombre_nora=nombre_nora,
+                job_name=JOB_NAME,
+                tipo_alerta="meta_ads_rechazados"
             )
             
             total_alertas += 1

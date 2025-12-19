@@ -10,6 +10,7 @@ from automation_hub.db.supabase_client import create_client_from_env
 from automation_hub.db.repositories.gbp_locations_repo import fetch_active_locations
 from automation_hub.db.repositories.gbp_metrics_repo import upsert_metrics_daily
 from automation_hub.db.repositories.alertas_repo import crear_alerta
+from automation_hub.integrations.telegram.notifier import notificar_alerta_telegram
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ def run(ctx=None):
     
     logger.info(f"Job {JOB_NAME} completado. Total métricas: {total_metrics}")
     
-    # Crear alerta de job completado
+    # Crear alerta de job completado y notificar por Telegram
     try:
         crear_alerta(
             supabase=supabase,
@@ -121,6 +122,21 @@ def run(ctx=None):
                 "job_name": JOB_NAME
             },
             prioridad="baja"
+        )
+        
+        # Notificar por Telegram
+        notificar_alerta_telegram(
+            nombre="📊 Métricas GBP Sincronizadas",
+            descripcion=f"Job completado exitosamente",
+            prioridad="baja",
+            datos={
+                "Total Métricas": total_metrics,
+                "Locaciones": len(locations),
+                "Período": f"{days_back} días"
+            },
+            nombre_nora="Sistema",
+            job_name=JOB_NAME,
+            tipo_alerta="job_completado"
         )
     except Exception as e:
         logger.warning(f"No se pudo crear alerta: {e}")

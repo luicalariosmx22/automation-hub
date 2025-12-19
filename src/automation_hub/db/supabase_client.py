@@ -4,7 +4,7 @@ Cliente de Supabase para automation-hub.
 import logging
 import os
 from typing import Optional
-from supabase import create_client as supabase_create_client, Client
+from supabase import create_client, Client
 
 logger = logging.getLogger(__name__)
 
@@ -30,26 +30,6 @@ def _clean_env(value: Optional[str]) -> Optional[str]:
     return v
 
 
-def create_client(supabase_url: str, supabase_key: str) -> Client:
-    """
-    Crea y retorna un cliente de Supabase.
-    
-    Args:
-        supabase_url: URL del proyecto Supabase
-        supabase_key: API key de Supabase
-        
-    Returns:
-        Cliente de Supabase configurado
-    """
-    try:
-        client = supabase_create_client(supabase_url, supabase_key)
-        logger.debug("Cliente Supabase creado exitosamente")
-        return client
-    except Exception as e:
-        logger.error(f"Error creando cliente Supabase: {e}")
-        raise
-
-
 def create_client_from_env() -> Client:
     """
     Crea y retorna un cliente de Supabase desde variables de entorno.
@@ -72,6 +52,7 @@ def create_client_from_env() -> Client:
             missing.append("SUPABASE_KEY")
         raise ValueError(f"Variables de Supabase faltantes o vacías: {', '.join(missing)}")
     
-    logger.info(f"Supabase config loaded: url={url}, key_len={len(key)}")
+    logger.info(f"Supabase url loaded: {url}")
+    logger.info(f"Supabase key length: {len(key)}")
     
     return create_client(url, key)

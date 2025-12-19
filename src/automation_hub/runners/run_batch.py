@@ -98,7 +98,8 @@ def run_batch() -> int:
             logger.info(f"Jobs disponibles: {', '.join(available_jobs)}")
         return 2
     
-    # Validar que todos los jobs existen
+    # Configuración
+    fail_fast = os.getenv("FAIL_FAST", "false").lower() == "true"
     use_db_config = os.getenv("USE_DB_CONFIG", "true").lower() == "true"
     logger.info(f"FAIL_FAST: {fail_fast}")
     logger.info(f"USE_DB_CONFIG: {use_db_config}")

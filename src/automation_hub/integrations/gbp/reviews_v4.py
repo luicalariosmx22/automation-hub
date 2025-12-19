@@ -94,7 +94,8 @@ def map_review_to_row(
         "FOUR": 4,
         "FIVE": 5
     }
-    star_rating = star_rating_map.get(review_json.get("starRating"), None)
+    star_rating_str = review_json.get("starRating")
+    star_rating = star_rating_map.get(star_rating_str) if star_rating_str else None
     
     # Extraer reviewer info
     reviewer = review_json.get("reviewer", {})

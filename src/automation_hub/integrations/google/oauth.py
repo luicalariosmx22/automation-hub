@@ -37,7 +37,7 @@ def get_bearer_token(client_id: str, client_secret: str, refresh_token: str) -> 
         credentials.refresh(request)
         
         logger.debug("Token de acceso obtenido exitosamente")
-        return credentials.token
+        return str(credentials.token)
     
     except Exception as e:
         logger.error(f"Error obteniendo token de acceso: {e}")

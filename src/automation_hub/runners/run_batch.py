@@ -104,6 +104,14 @@ def run_batch() -> int:
         logger.info(f"--- Ejecutando job: {job_name} ---")
         job_func = get_job(job_name)
         
+        if job_func is None:
+            logger.error(f"Job '{job_name}' no encontrado en el registro")
+            results["failed"] += 1
+            results["failures"].append(job_name)
+            if fail_fast:
+                break
+            continue
+        
         try:
             job_func()
             results["success"] += 1

@@ -61,4 +61,3 @@ def _register_default_jobs():
 
 # Registrar jobs al importar el módulo
 _register_default_jobs()
-    return sorted(_JOB_REGISTRY.keys())

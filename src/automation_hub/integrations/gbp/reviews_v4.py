@@ -67,8 +67,8 @@ def list_all_reviews(parent_location_name: str, auth_header: dict) -> list[dict]
 def map_review_to_row(
     review_json: dict,
     nombre_nora: str,
-    api_id: str,
-    location_name: str
+    api_id: str | None,
+    location_name: str | None
 ) -> dict:
     """
     Mapea un review de la API v4 a una fila de base de datos.

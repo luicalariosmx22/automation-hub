@@ -72,8 +72,8 @@ def fetch_multi_daily_metrics(
 def parse_metrics_to_rows(
     time_series_list: list[dict],
     nombre_nora: str,
-    api_id: str,
-    location_name: str
+    api_id: str | None,
+    location_name: str | None
 ) -> list[dict]:
     """
     Parsea la respuesta de la API a filas de base de datos.

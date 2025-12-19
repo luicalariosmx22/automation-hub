@@ -90,7 +90,9 @@ def get_job_config(supabase: Client, job_name: str) -> Optional[Dict[str, Any]]:
         .single()
         .execute()
     )
-    return result.data if result.data else None
+    if not result.data:
+        return None
+    return cast(Dict[str, Any], result.data)
 
 
 def actualizar_intervalo(

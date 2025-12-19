@@ -49,9 +49,9 @@ def run(ctx=None):
     batch_size = 200
     
     for location in locations:
-        location_name = location.get("location_name") or ""
+        location_name = location.get("location_name")
         nombre_nora_loc = location.get("nombre_nora") or "Sistema"
-        api_id = location.get("api_id") or ""
+        api_id = location.get("api_id")  # Puede ser None si no existe
         
         if not location_name:
             logger.warning(f"Locación sin location_name: {location}")

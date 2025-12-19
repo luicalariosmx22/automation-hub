@@ -9,6 +9,7 @@ from automation_hub.integrations.gbp.performance_v1 import fetch_multi_daily_met
 from automation_hub.db.supabase_client import create_client_from_env
 from automation_hub.db.repositories.gbp_locations_repo import fetch_active_locations
 from automation_hub.db.repositories.gbp_metrics_repo import upsert_metrics_daily
+from automation_hub.db.repositories.alertas_repo import crear_alerta
 
 logger = logging.getLogger(__name__)
 
@@ -101,3 +102,25 @@ def run(ctx=None):
             continue
     
     logger.info(f"Job {JOB_NAME} completado. Total métricas: {total_metrics}")
+    
+    # Crear alerta de job completado
+    try:
+        crear_alerta(
+            supabase=supabase,
+            nombre=f"Métricas GBP Actualizadas",
+            tipo="job_completado",
+            nombre_nora="Sistema",
+            descripcion=f"Se han sincronizado {total_metrics} métricas de {len(locations)} locaciones GBP (últimos {days_back} días)",
+            evento_origen=JOB_NAME,
+            datos={
+                "total_metricas": total_metrics,
+                "total_locaciones": len(locations),
+                "dias_atras": days_back,
+                "fecha_inicio": str(start_date),
+                "fecha_fin": str(end_date),
+                "job_name": JOB_NAME
+            },
+            prioridad="baja"
+        )
+    except Exception as e:
+        logger.warning(f"No se pudo crear alerta: {e}")

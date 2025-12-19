@@ -8,6 +8,7 @@ from automation_hub.integrations.gbp.reviews_v4 import list_all_reviews, map_rev
 from automation_hub.db.supabase_client import create_client_from_env
 from automation_hub.db.repositories.gbp_locations_repo import fetch_active_locations
 from automation_hub.db.repositories.gbp_reviews_repo import upsert_reviews
+from automation_hub.db.repositories.alertas_repo import crear_alerta
 
 logger = logging.getLogger(__name__)
 
@@ -89,3 +90,22 @@ def run(ctx=None):
             continue
     
     logger.info(f"Job {JOB_NAME} completado. Total reviews: {total_reviews}")
+    
+    # Crear alerta de job completado
+    try:
+        crear_alerta(
+            supabase=supabase,
+            nombre=f"Reviews GBP Actualizadas",
+            tipo="job_completado",
+            nombre_nora="Sistema",
+            descripcion=f"Se han sincronizado {total_reviews} reviews de {len(locations)} locaciones GBP",
+            evento_origen=JOB_NAME,
+            datos={
+                "total_reviews": total_reviews,
+                "total_locaciones": len(locations),
+                "job_name": JOB_NAME
+            },
+            prioridad="baja"
+        )
+    except Exception as e:
+        logger.warning(f"No se pudo crear alerta: {e}")

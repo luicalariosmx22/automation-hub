@@ -61,6 +61,4 @@ def _register_default_jobs():
 
 # Registrar jobs al importar el módulo
 _register_default_jobs()
-        Lista con los nombres de todos los jobs disponibles
-    """
     return sorted(_JOB_REGISTRY.keys())

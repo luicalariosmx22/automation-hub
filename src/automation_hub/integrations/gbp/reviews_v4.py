@@ -8,25 +8,20 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
-def list_all_reviews(parent_location_name: str, token: str) -> list[dict]:
+def list_all_reviews(parent_location_name: str, auth_header: dict) -> list[dict]:
     """
     Lista todas las reviews de una locación usando GBP API v4.
     Maneja paginación automáticamente.
     
     Args:
         parent_location_name: Nombre completo de la locación (formato: accounts/*/locations/*)
-        token: Bearer token de acceso
+        auth_header: Dict con header Authorization
         
     Returns:
         Lista de reviews en formato raw de la API
     """
     base_url = "https://mybusiness.googleapis.com/v4"
     url = f"{base_url}/{parent_location_name}/reviews"
-    
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
     
     params = {
         "pageSize": 50,
@@ -41,7 +36,7 @@ def list_all_reviews(parent_location_name: str, token: str) -> list[dict]:
             if page_token:
                 params["pageToken"] = page_token
             
-            response = requests.get(url, headers=headers, params=params)
+            response = requests.get(url, headers=auth_header, params=params)
             response.raise_for_status()
             
             data = response.json()

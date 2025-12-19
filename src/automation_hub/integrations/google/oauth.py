@@ -2,6 +2,7 @@
 Manejo de autenticación OAuth2 con Google.
 """
 import logging
+import os
 from typing import Optional
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -32,9 +33,78 @@ def _clean(value: Optional[str]) -> Optional[str]:
     return v if v else None
 
 
+def get_gbp_creds_from_env() -> Credentials:
+    """
+    Obtiene credenciales de GBP desde variables de entorno y las refresca.
+    Implementa validaciones similares a Nora panel_cliente_google_maps.
+    
+    Returns:
+        Credentials de Google con token válido
+        
+    Raises:
+        ValueError: Si faltan variables o son inválidas
+        Exception: Si falla el refresh del token
+    """
+    # Leer y limpiar variables de entorno
+    client_id = _clean(os.getenv("GOOGLE_CLIENT_ID"))
+    client_secret = _clean(os.getenv("GOOGLE_CLIENT_SECRET"))
+    refresh_token = _clean(os.getenv("GBP_REFRESH_TOKEN"))
+    
+    # Validar que existan
+    if not client_id:
+        raise ValueError("GOOGLE_CLIENT_ID no configurado o vacío")
+    if not client_secret:
+        raise ValueError("GOOGLE_CLIENT_SECRET no configurado o vacío")
+    if not refresh_token:
+        raise ValueError("GBP_REFRESH_TOKEN no configurado o vacío")
+    
+    # Validar formato client_id
+    if not client_id.endswith(".apps.googleusercontent.com"):
+        raise ValueError("GOOGLE_CLIENT_ID debe terminar en .apps.googleusercontent.com")
+    
+    # Validar longitud mínima del secret
+    if len(client_secret) < 20:
+        raise ValueError("GOOGLE_CLIENT_SECRET parece inválido (longitud insuficiente)")
+    
+    # Crear credenciales
+    try:
+        credentials = Credentials(
+            token=None,
+            refresh_token=refresh_token,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=client_id,
+            client_secret=client_secret
+        )
+        
+        # Refrescar token
+        logger.info("Refrescando token de acceso de Google OAuth")
+        request = Request()
+        credentials.refresh(request)
+        
+        logger.info("Token de acceso obtenido exitosamente")
+        return credentials
+    
+    except Exception as e:
+        logger.error(f"Error obteniendo token de acceso de Google: {e}")
+        raise ValueError("No se pudo refrescar el token de OAuth. Verifica que el refresh_token sea válido y corresponda al client_id/secret configurado") from e
+
+
+def get_bearer_header() -> dict:
+    """
+    Obtiene header de autorización Bearer listo para usar en requests.
+    
+    Returns:
+        Dict con header Authorization
+    """
+    creds = get_gbp_creds_from_env()
+    return {"Authorization": f"Bearer {creds.token}"}
+
+
 def get_bearer_token(client_id: str, client_secret: str, refresh_token: str) -> str:
     """
     Obtiene un token de acceso válido usando refresh token de Google OAuth2.
+    
+    DEPRECATED: Usar get_gbp_creds_from_env() o get_bearer_header() en su lugar.
     
     Args:
         client_id: Client ID de Google Cloud

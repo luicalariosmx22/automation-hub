@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def fetch_multi_daily_metrics(
     location_id: str,
-    token: str,
+    auth_header: dict,
     metrics: list[str],
     start_date: date,
     end_date: date
@@ -21,7 +21,7 @@ def fetch_multi_daily_metrics(
     
     Args:
         location_id: ID de la locación (formato: locations/*)
-        token: Bearer token de acceso
+        auth_header: Dict con header Authorization
         metrics: Lista de métricas a obtener (ej: ['WEBSITE_CLICKS', 'CALL_CLICKS'])
         start_date: Fecha inicial del rango
         end_date: Fecha final del rango
@@ -31,11 +31,6 @@ def fetch_multi_daily_metrics(
     """
     base_url = "https://businessprofileperformance.googleapis.com/v1"
     url = f"{base_url}/{location_id}:fetchMultiDailyMetricsTimeSeries"
-    
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
     
     # Construir query params para cada métrica
     params = []
@@ -53,7 +48,7 @@ def fetch_multi_daily_metrics(
     ])
     
     try:
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(url, headers=auth_header, params=params)
         response.raise_for_status()
         
         data = response.json()

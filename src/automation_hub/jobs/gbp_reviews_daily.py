@@ -3,7 +3,7 @@ Job para sincronizar reviews diarias de Google Business Profile.
 """
 import logging
 import os
-from automation_hub.integrations.google.oauth import get_bearer_token
+from automation_hub.integrations.google.oauth import get_bearer_header
 from automation_hub.integrations.gbp.reviews_v4 import list_all_reviews, map_review_to_row
 from automation_hub.db.supabase_client import create_client
 from automation_hub.db.repositories.gbp_locations_repo import fetch_active_locations
@@ -28,27 +28,15 @@ def run(ctx=None):
     # Cargar configuración desde env vars
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_KEY")
-    client_id = os.getenv("GOOGLE_CLIENT_ID")
-    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
-    refresh_token = os.getenv("GBP_REFRESH_TOKEN")
     nombre_nora = os.getenv("GBP_NOMBRE_NORA")  # Opcional
     
-    # Validar variables requeridas
-    required_vars = {
-        "SUPABASE_URL": supabase_url,
-        "SUPABASE_KEY": supabase_key,
-        "GOOGLE_CLIENT_ID": client_id,
-        "GOOGLE_CLIENT_SECRET": client_secret,
-        "GBP_REFRESH_TOKEN": refresh_token
-    }
+    # Validar variables requeridas de Supabase
+    if not supabase_url or not supabase_key:
+        raise ValueError("SUPABASE_URL y SUPABASE_KEY son requeridos")
     
-    missing_vars = [k for k, v in required_vars.items() if not v]
-    if missing_vars:
-        raise ValueError(f"Variables de entorno faltantes: {', '.join(missing_vars)}")
-    
-    # Obtener token de acceso
-    logger.info("Obteniendo token de acceso de Google")
-    token = get_bearer_token(client_id, client_secret, refresh_token)
+    # Obtener header de autorización (valida OAuth internamente)
+    logger.info("Obteniendo credenciales de Google OAuth")
+    auth_header = get_bearer_header()
     
     # Crear cliente Supabase
     supabase = create_client(supabase_url, supabase_key)
@@ -78,7 +66,7 @@ def run(ctx=None):
             logger.info(f"Procesando reviews para: {location_name}")
             
             # Descargar reviews
-            reviews_raw = list_all_reviews(location_name, token)
+            reviews_raw = list_all_reviews(location_name, auth_header)
             
             if not reviews_raw:
                 logger.info(f"No hay reviews para {location_name}")

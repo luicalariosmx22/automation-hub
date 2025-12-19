@@ -10,8 +10,10 @@ Luego abre http://localhost:5000
 import os
 import logging
 from datetime import datetime
+from typing import Optional
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
+from supabase import Client
 from automation_hub.config.logging import setup_logging
 from automation_hub.db.supabase_client import create_client_from_env
 from automation_hub.db.repositories.jobs_config_repo import (
@@ -29,7 +31,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Cliente Supabase global
-supabase = None
+supabase: Optional[Client] = None
 
 
 @app.before_request
@@ -53,7 +55,11 @@ def index():
 @app.route('/api/jobs', methods=['GET'])
 def get_jobs():
     """Obtiene todos los jobs configurados."""
+    if supabase is None:
+        return jsonify({"success": False, "error": "Supabase no conectado"}), 500
+    
     try:
+        assert supabase is not None
         result = supabase.table("jobs_config").select("*").order("job_name").execute()
         return jsonify({"success": True, "data": result.data})
     except Exception as e:
@@ -64,7 +70,11 @@ def get_jobs():
 @app.route('/api/jobs/pending', methods=['GET'])
 def get_pending_jobs():
     """Obtiene jobs pendientes de ejecución."""
+    if supabase is None:
+        return jsonify({"success": False, "error": "Supabase no conectado"}), 500
+    
     try:
+        assert supabase is not None
         jobs = fetch_jobs_pendientes(supabase)
         return jsonify({"success": True, "data": jobs})
     except Exception as e:
@@ -75,7 +85,11 @@ def get_pending_jobs():
 @app.route('/api/jobs/<job_name>', methods=['GET'])
 def get_job(job_name):
     """Obtiene configuración de un job específico."""
+    if supabase is None:
+        return jsonify({"success": False, "error": "Supabase no conectado"}), 500
+    
     try:
+        assert supabase is not None
         job = get_job_config(supabase, job_name)
         if job:
             return jsonify({"success": True, "data": job})
@@ -88,9 +102,13 @@ def get_job(job_name):
 @app.route('/api/jobs/<job_name>/toggle', methods=['POST'])
 def toggle_job(job_name):
     """Habilita o deshabilita un job."""
+    if supabase is None:
+        return jsonify({"success": False, "error": "Supabase no conectado"}), 500
+    
     try:
+        assert supabase is not None
         data = request.json
-        enabled = data.get('enabled', True)
+        enabled = data.get('enabled', True) if data else True
         habilitar_deshabilitar_job(supabase, job_name, enabled)
         return jsonify({"success": True, "message": f"Job {job_name} {'habilitado' if enabled else 'deshabilitado'}"})
     except Exception as e:
@@ -101,9 +119,13 @@ def toggle_job(job_name):
 @app.route('/api/jobs/<job_name>/interval', methods=['POST'])
 def update_interval(job_name):
     """Actualiza el intervalo de ejecución de un job."""
+    if supabase is None:
+        return jsonify({"success": False, "error": "Supabase no conectado"}), 500
+    
     try:
+        assert supabase is not None
         data = request.json
-        interval = data.get('interval_minutes')
+        interval = data.get('interval_minutes') if data else None
         if not interval or not isinstance(interval, int):
             return jsonify({"success": False, "error": "interval_minutes requerido"}), 400
         
@@ -117,7 +139,11 @@ def update_interval(job_name):
 @app.route('/api/jobs/<job_name>/run-now', methods=['POST'])
 def run_now(job_name):
     """Programa un job para ejecutarse inmediatamente."""
+    if supabase is None:
+        return jsonify({"success": False, "error": "Supabase no conectado"}), 500
+    
     try:
+        assert supabase is not None
         result = (
             supabase.table("jobs_config")
             .update({
@@ -139,10 +165,14 @@ def run_now(job_name):
 @app.route('/api/jobs', methods=['POST'])
 def create_job():
     """Crea un nuevo job."""
+    if supabase is None:
+        return jsonify({"success": False, "error": "Supabase no conectado"}), 500
+    
     try:
+        assert supabase is not None
         data = request.json
-        job_name = data.get('job_name')
-        interval = data.get('schedule_interval_minutes', 1440)
+        job_name = data.get('job_name') if data else None
+        interval = data.get('schedule_interval_minutes', 1440) if data else 1440
         
         if not job_name:
             return jsonify({"success": False, "error": "job_name requerido"}), 400

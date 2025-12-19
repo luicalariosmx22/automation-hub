@@ -5,6 +5,14 @@ Sincroniza eventos del calendario de Google con la tabla agenda_citas cada 30 mi
 """
 import logging
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Cargar .env si existe
+env_path = Path(__file__).parent.parent.parent.parent / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
+
 from automation_hub.config.logging import setup_logging
 from automation_hub.integrations.google_calendar.sync_service import GoogleCalendarSyncService
 from automation_hub.db.supabase_client import create_client_from_env

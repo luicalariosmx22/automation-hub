@@ -5,11 +5,20 @@ Envía a las 9 AM un resumen con todas las citas del día a todo el equipo.
 """
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Cargar .env si existe
+env_path = Path(__file__).parent.parent.parent.parent / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
+
 from automation_hub.config.logging import setup_logging
 from automation_hub.db.supabase_client import create_client_from_env
 from automation_hub.db.repositories.alertas_repo import crear_alerta
 from automation_hub.integrations.telegram.notifier import TelegramNotifier
+from automation_hub.integrations.google_calendar.sync_service import GoogleCalendarSyncService
 import os
 
 logger = logging.getLogger(__name__)
@@ -24,10 +33,44 @@ def run():
         nombre_nora = os.getenv("NOMBRE_NORA", "aura")
         supabase = create_client_from_env()
         
-        # Obtener fecha de hoy
-        hoy = datetime.now(timezone.utc)
-        inicio_dia = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
-        fin_dia = hoy.replace(hour=23, minute=59, second=59, microsecond=999999)
+        # Obtener fecha de hoy en timezone de Hermosillo
+        import pytz
+        hermosillo_tz = pytz.timezone('America/Hermosillo')
+        ahora_hermosillo = datetime.now(hermosillo_tz)
+        
+        # PRIMERO: Sincronizar con Google Calendar para tener datos actualizados
+        logger.info("Sincronizando con Google Calendar antes de generar resumen...")
+        try:
+            google_sync = GoogleCalendarSyncService(nombre_nora)
+            status = google_sync.get_connection_status()
+            
+            if status.get('connected'):
+                # Sincronizar solo el día de hoy (no necesitamos 60 días)
+                inicio_sync = ahora_hermosillo.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+                fin_sync = ahora_hermosillo.replace(hour=23, minute=59, second=59, microsecond=999999).astimezone(timezone.utc)
+                
+                sync_stats = google_sync.sync_from_google(
+                    inicio_sync.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                    fin_sync.strftime('%Y-%m-%dT%H:%M:%SZ')
+                )
+                logger.info(f"Sync completado: {sync_stats}")
+            else:
+                logger.warning(f"Google Calendar no conectado: {status.get('reason')}")
+        except Exception as e:
+            logger.error(f"Error en sync de Google Calendar: {e}")
+            # Continuamos aunque falle el sync
+        
+        # Inicio y fin del día en Hermosillo
+        inicio_dia_hermosillo = ahora_hermosillo.replace(hour=0, minute=0, second=0, microsecond=0)
+        fin_dia_hermosillo = ahora_hermosillo.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        # Convertir a UTC para la query
+        inicio_dia = inicio_dia_hermosillo.astimezone(timezone.utc)
+        fin_dia = fin_dia_hermosillo.astimezone(timezone.utc)
+        fin_dia = fin_dia_hermosillo.astimezone(timezone.utc)
+        
+        logger.info(f"Buscando citas para hoy en Hermosillo: {ahora_hermosillo.strftime('%Y-%m-%d %H:%M')}")
+        logger.info(f"Rango UTC: {inicio_dia.isoformat()} a {fin_dia.isoformat()}")
         
         # Consultar citas del día (no canceladas)
         result = supabase.table('agenda_citas') \
@@ -39,27 +82,28 @@ def run():
             .order('inicio') \
             .execute()
         
-        citas: List[Dict[str, Any]] = result.data if result.data else []
+        citas: List[Dict[str, Any]] = cast(List[Dict[str, Any]], result.data if result.data else [])
         
         logger.info(f"Encontradas {len(citas)} citas para hoy")
         
         # Formatear mensaje
         if not citas:
             mensaje = (
-                f"📅 Agenda del día - {hoy.strftime('%d/%m/%Y')}\n\n"
+                f"📅 Agenda del día - {ahora_hermosillo.strftime('%d/%m/%Y')}\n\n"
                 f"✨ No hay citas programadas para hoy\n\n"
                 f"¡Buen día! 😊"
             )
         else:
             mensaje = (
-                f"📅 Agenda del día - {hoy.strftime('%d/%m/%Y')}\n\n"
+                f"📅 Agenda del día - {ahora_hermosillo.strftime('%d/%m/%Y')}\n\n"
                 f"📊 Total: {len(citas)} cita{'s' if len(citas) != 1 else ''}\n\n"
             )
             
             for i, cita in enumerate(citas, 1):
-                # Parsear hora de inicio
-                inicio = datetime.fromisoformat(cita['inicio'].replace('Z', '+00:00'))
-                hora = inicio.strftime('%H:%M')
+                # Parsear hora de inicio en UTC y convertir a Hermosillo
+                inicio_utc = datetime.fromisoformat(cita['inicio'].replace('Z', '+00:00'))
+                inicio_hermosillo = inicio_utc.astimezone(hermosillo_tz)
+                hora = inicio_hermosillo.strftime('%H:%M')
                 
                 # Título
                 titulo = cita.get('titulo', 'Sin título')
@@ -68,13 +112,26 @@ def run():
                 cliente_id = cita.get('cliente_id')
                 cliente_info = f" - Cliente: {cliente_id}" if cliente_id else ""
                 
-                # Ubicación si existe
+                # Meta información
                 meta = cita.get('meta', {})
-                ubicacion = ''
+                extra_info = ''
+                
                 if isinstance(meta, dict):
+                    # Ubicación
                     loc = meta.get('ubicacion', '')
                     if loc:
-                        ubicacion = f"\n   📍 {loc}"
+                        extra_info += f"\n   📍 {loc}"
+                    
+                    # Link de Google Meet
+                    meet_link = meta.get('hangoutLink', '')
+                    if meet_link:
+                        extra_info += f"\n   🎥 {meet_link}"
+                    
+                    # Descripción (primeras 100 chars)
+                    desc = meta.get('descripcion', '')
+                    if desc:
+                        desc_corta = desc[:100] + '...' if len(desc) > 100 else desc
+                        extra_info += f"\n   📝 {desc_corta}"
                 
                 # Estado
                 estado_emoji = {
@@ -84,7 +141,7 @@ def run():
                 }.get(cita.get('estado', 'pendiente'), '⏳')
                 
                 mensaje += (
-                    f"{i}. {estado_emoji} {hora} - {titulo}{cliente_info}{ubicacion}\n"
+                    f"{i}. {estado_emoji} {hora} - {titulo}{cliente_info}{extra_info}\n"
                 )
             
             mensaje += f"\n💼 ¡Que tengas un excelente día!"
@@ -98,7 +155,7 @@ def run():
             descripcion=mensaje,
             prioridad="media",
             datos={
-                "fecha": hoy.isoformat(),
+                "fecha": ahora_hermosillo.isoformat(),
                 "total_citas": len(citas),
                 "citas_ids": [c['id'] for c in citas]
             }

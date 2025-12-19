@@ -187,7 +187,7 @@ class GoogleCalendarSyncService:
                     'connected': True,
                     'user_email': tokens.get('user_email'),
                     'calendars': calendars,
-                    'selected_calendar': tokens.get('selected_calendar_id', 'primary')
+                    'selected_calendar': tokens.get('google_calendar_id', 'primary')
                 }
             else:
                 return {'connected': False, 'reason': 'Tokens expirados o inválidos'}
@@ -219,7 +219,7 @@ class GoogleCalendarSyncService:
                 raise ValueError(f"Calendario {calendar_id} no encontrado")
             
             # Actualizar configuración
-            tokens['selected_calendar_id'] = calendar_id
+            tokens['google_calendar_id'] = calendar_id
             self._save_tokens(tokens)
             
             logger.info(f"Calendario seleccionado: {calendar_id} para {self.nombre_nora}")
@@ -245,7 +245,7 @@ class GoogleCalendarSyncService:
                 raise ValueError("No hay conexión con Google Calendar")
             
             service = self._build_service(tokens)
-            calendar_id = tokens.get('selected_calendar_id', 'primary')
+            calendar_id = tokens.get('google_calendar_id', 'primary')
             
             stats = {'created': 0, 'updated': 0, 'errors': 0}
             
@@ -301,7 +301,7 @@ class GoogleCalendarSyncService:
                 raise ValueError("No hay conexión con Google Calendar")
             
             service = self._build_service(tokens)
-            calendar_id = tokens.get('selected_calendar_id', 'primary')
+            calendar_id = tokens.get('google_calendar_id', 'primary')
             
             # Obtener eventos de Google (incluir eventos cancelados)
             events_result = service.events().list(
@@ -410,7 +410,7 @@ class GoogleCalendarSyncService:
                 return {'success': False, 'error': 'No hay conexión con Google Calendar'}
             
             service = self._build_service(tokens)
-            calendar_id = tokens.get('selected_calendar_id', 'primary')
+            calendar_id = tokens.get('google_calendar_id', 'primary')
             
             try:
                 # Eliminar evento de Google Calendar
@@ -508,13 +508,14 @@ class GoogleCalendarSyncService:
             result = self.supabase.table('google_calendar_sync') \
                 .select('*') \
                 .eq('nombre_nora', self.nombre_nora) \
-                .single() \
                 .execute()
             
-            return result.data if result.data else None
+            if result.data and len(result.data) > 0:
+                return result.data[0]
+            return None
             
         except Exception as e:
-            logger.debug(f"No se pudieron cargar tokens: {e}")
+            logger.error(f"Error cargando tokens: {e}")
             return None
     
     def _delete_tokens(self) -> bool:
@@ -844,7 +845,7 @@ class GoogleCalendarSyncService:
                 .eq('origen', 'google_calendar') \
                 .gte('inicio', fecha_desde) \
                 .lte('inicio', fecha_hasta) \
-                .is_('google_event_id', 'not.null') \
+                .neq('google_event_id', None) \
                 .execute()
             
             return result.data or []

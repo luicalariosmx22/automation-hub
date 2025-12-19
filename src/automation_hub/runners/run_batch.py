@@ -154,21 +154,7 @@ def run_batch() -> int:
                 try:
                     marcar_job_ejecutado(supabase, job_name, success=False, error_message=error_msg)
                 except Exception as mark_error:
-                    logger.warning(f"No se pudo marcar error del job: {mark_error}"
-            results["failures"].append(job_name)
-            if fail_fast:
-                break
-            continue
-        
-        try:
-            job_func()
-            results["success"] += 1
-            logger.info(f"✓ Job '{job_name}' completado exitosamente")
-        
-        except Exception as e:
-            results["failed"] += 1
-            results["failures"].append(job_name)
-            logger.error(f"✗ Job '{job_name}' falló: {e}", exc_info=True)
+                    logger.warning(f"No se pudo marcar error del job: {mark_error}")
             
             if fail_fast:
                 logger.error("FAIL_FAST activado, deteniendo ejecución")

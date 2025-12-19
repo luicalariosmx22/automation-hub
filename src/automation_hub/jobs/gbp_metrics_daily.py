@@ -6,7 +6,7 @@ import os
 from datetime import date, timedelta
 from automation_hub.integrations.google.oauth import get_bearer_header
 from automation_hub.integrations.gbp.performance_v1 import fetch_multi_daily_metrics, parse_metrics_to_rows
-from automation_hub.db.supabase_client import create_client
+from automation_hub.db.supabase_client import create_client_from_env
 from automation_hub.db.repositories.gbp_locations_repo import fetch_active_locations
 from automation_hub.db.repositories.gbp_metrics_repo import upsert_metrics_daily
 
@@ -27,8 +27,6 @@ def run(ctx=None):
     logger.info(f"Iniciando job: {JOB_NAME}")
     
     # Cargar configuración desde env vars
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
     nombre_nora = os.getenv("GBP_NOMBRE_NORA")  # Opcional
     
     # Métricas a descargar
@@ -43,16 +41,12 @@ def run(ctx=None):
     logger.info(f"Métricas a obtener: {metrics}")
     logger.info(f"Rango de fechas: {start_date} a {end_date}")
     
-    # Validar variables requeridas de Supabase
-    if not supabase_url or not supabase_key:
-        raise ValueError("SUPABASE_URL y SUPABASE_KEY son requeridos")
-    
     # Obtener header de autorización (valida OAuth internamente)
     logger.info("Obteniendo credenciales de Google OAuth")
     auth_header = get_bearer_header()
     
-    # Crear cliente Supabase
-    supabase = create_client(supabase_url, supabase_key)
+    # Crear cliente Supabase (valida variables internamente)
+    supabase = create_client_from_env()
     
     # Obtener locaciones activas
     logger.info("Obteniendo locaciones activas")

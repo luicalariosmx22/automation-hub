@@ -5,7 +5,7 @@ import logging
 import os
 from automation_hub.integrations.google.oauth import get_bearer_header
 from automation_hub.integrations.gbp.reviews_v4 import list_all_reviews, map_review_to_row
-from automation_hub.db.supabase_client import create_client
+from automation_hub.db.supabase_client import create_client_from_env
 from automation_hub.db.repositories.gbp_locations_repo import fetch_active_locations
 from automation_hub.db.repositories.gbp_reviews_repo import upsert_reviews
 
@@ -26,20 +26,14 @@ def run(ctx=None):
     logger.info(f"Iniciando job: {JOB_NAME}")
     
     # Cargar configuración desde env vars
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
     nombre_nora = os.getenv("GBP_NOMBRE_NORA")  # Opcional
-    
-    # Validar variables requeridas de Supabase
-    if not supabase_url or not supabase_key:
-        raise ValueError("SUPABASE_URL y SUPABASE_KEY son requeridos")
     
     # Obtener header de autorización (valida OAuth internamente)
     logger.info("Obteniendo credenciales de Google OAuth")
     auth_header = get_bearer_header()
     
-    # Crear cliente Supabase
-    supabase = create_client(supabase_url, supabase_key)
+    # Crear cliente Supabase (valida variables internamente)
+    supabase = create_client_from_env()
     
     # Obtener locaciones activas
     logger.info("Obteniendo locaciones activas")

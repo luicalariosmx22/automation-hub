@@ -39,6 +39,7 @@ env/
 
 # Environment variables
 .env
+*.download
 
 # Logs
 *.log

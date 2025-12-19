@@ -5,6 +5,12 @@ requests>=2.31.0
 
 # Google Authentication
 google-auth>=2.29.0
+google-auth-oauthlib>=1.2.0
+google-api-python-client>=2.116.0
+
+# Date/time handling
+python-dateutil>=2.8.2
+pytz>=2024.1
 
 # Supabase client
 supabase>=2.6.0

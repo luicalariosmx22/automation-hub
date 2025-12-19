@@ -102,6 +102,28 @@ PYTHONPATH=src python -m automation_hub.runners.run_job gbp.reviews.daily
 PYTHONPATH=src python -m automation_hub.runners.run_job gbp.metrics.daily
 ```
 
+### Ejecutar Múltiples Jobs en Batch
+
+Para ejecutar varios jobs en secuencia (ideal para Railway Cron):
+
+```bash
+PYTHONPATH=src JOB_LIST=gbp.reviews.daily,gbp.metrics.daily python -m automation_hub.runners.run_batch
+```
+
+O usando grupos predefinidos:
+
+```bash
+PYTHONPATH=src JOB_GROUP=daily python -m automation_hub.runners.run_batch
+```
+
+Grupos disponibles:
+- `tenmin`: Jobs cada 10 minutos
+- `hourly`: Jobs cada hora
+- `daily`: Jobs diarios (incluye GBP reviews y metrics)
+
+Variables opcionales:
+- `FAIL_FAST=true`: Detiene al primer error (default: false)
+
 ### Listar Jobs Disponibles
 
 Si no hay jobs registrados o se proporciona un nombre inválido, el runner mostrará la lista de jobs disponibles:
@@ -153,6 +175,11 @@ Consulta `.env.example` para ver todas las variables disponibles:
 - `GBP_NOMBRE_NORA`: Filtro por tenant (opcional)
 - `GBP_METRICS`: Métricas a obtener (default: `WEBSITE_CLICKS,CALL_CLICKS`)
 - `GBP_DAYS_BACK`: Días hacia atrás para métricas (default: 30)
+
+### Batch Runner (opcional)
+- `JOB_LIST`: Lista de jobs separados por coma (ej: `job1,job2`)
+- `JOB_GROUP`: Grupo predefinido (`tenmin`, `hourly`, `daily`)
+- `FAIL_FAST`: Detener al primer error (`true`/`false`, default: `false`)
 
 ## Desarrollo
 

@@ -81,8 +81,11 @@ def run(ctx=None):
             logger.info(f"Reviews procesadas para {location_name}: {len(reviews_mapped)}")
         
         except Exception as e:
-            logger.error(f"Error procesando {location_name}: {e}", exc_info=True)
-            # Continuar con la siguiente locación
+            # 404 es normal (locación sin acceso a Reviews API v4)
+            if "404" in str(e):
+                logger.warning(f"Locación {location_name} sin acceso a Reviews API (404)")
+            else:
+                logger.error(f"Error procesando {location_name}: {e}", exc_info=True)
             continue
     
     logger.info(f"Job {JOB_NAME} completado. Total reviews: {total_reviews}")

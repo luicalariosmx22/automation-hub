@@ -57,6 +57,13 @@ def fetch_multi_daily_metrics(
         logger.info(f"Métricas obtenidas para {location_id}: {len(time_series)} series")
         return time_series
     
+    except requests.exceptions.HTTPError as e:
+        # 404 es común (sin acceso a Performance API)
+        if e.response.status_code == 404:
+            logger.debug(f"Locación {location_id} sin acceso a Performance API (404)")
+        else:
+            logger.error(f"HTTP error obteniendo métricas para {location_id}: {e}")
+        raise
     except requests.exceptions.RequestException as e:
         logger.error(f"Error obteniendo métricas para {location_id}: {e}")
         raise

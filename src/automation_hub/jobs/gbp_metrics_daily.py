@@ -93,8 +93,11 @@ def run(ctx=None):
                 logger.info(f"Métricas procesadas para {location_name}: {len(metrics_rows)}")
         
         except Exception as e:
-            logger.error(f"Error procesando {location_name}: {e}", exc_info=True)
-            # Continuar con la siguiente locación
+            # 404 es normal (locación sin acceso a Performance API)
+            if "404" in str(e):
+                logger.warning(f"Locación {location_name} sin acceso a Performance API (404)")
+            else:
+                logger.error(f"Error procesando {location_name}: {e}", exc_info=True)
             continue
     
     logger.info(f"Job {JOB_NAME} completado. Total métricas: {total_metrics}")

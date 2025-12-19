@@ -52,6 +52,13 @@ def list_all_reviews(parent_location_name: str, auth_header: dict) -> list[dict]
         logger.info(f"Total reviews obtenidas para {parent_location_name}: {len(all_reviews)}")
         return all_reviews
     
+    except requests.exceptions.HTTPError as e:
+        # 404 es común (sin acceso a Reviews API v4)
+        if e.response.status_code == 404:
+            logger.debug(f"Locación {parent_location_name} sin acceso a Reviews API (404)")
+        else:
+            logger.error(f"HTTP error obteniendo reviews para {parent_location_name}: {e}")
+        raise
     except requests.exceptions.RequestException as e:
         logger.error(f"Error obteniendo reviews para {parent_location_name}: {e}")
         raise

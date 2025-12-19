@@ -49,9 +49,9 @@ def run(ctx=None):
     batch_size = 200
     
     for location in locations:
-        location_name = location.get("location_name")
-        nombre_nora_loc = location.get("nombre_nora")
-        api_id = location.get("api_id")
+        location_name = location.get("location_name") or ""
+        nombre_nora_loc = location.get("nombre_nora") or "Sistema"
+        api_id = location.get("api_id") or ""
         
         if not location_name:
             logger.warning(f"Locación sin location_name: {location}")
@@ -69,7 +69,7 @@ def run(ctx=None):
             
             # Mapear reviews a formato de BD
             reviews_mapped = [
-                map_review_to_row(review, nombre_nora_loc, api_id, location_name)
+                map_review_to_row(review, nombre_nora_loc or "", api_id, location_name)
                 for review in reviews_raw
             ]
             

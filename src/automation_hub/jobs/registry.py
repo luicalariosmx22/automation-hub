@@ -51,10 +51,11 @@ def list_jobs() -> List[str]:
 def _register_default_jobs():
     """Registra los jobs por defecto del sistema."""
     try:
-        from automation_hub.jobs import gbp_reviews_daily, gbp_metrics_daily
+        from automation_hub.jobs import gbp_reviews_daily, gbp_metrics_daily, meta_ads_rechazos_daily
         
         register_job(gbp_reviews_daily.JOB_NAME, gbp_reviews_daily.run)
         register_job(gbp_metrics_daily.JOB_NAME, gbp_metrics_daily.run)
+        register_job(meta_ads_rechazos_daily.JOB_NAME, meta_ads_rechazos_daily.run)
     except ImportError as e:
         logger.warning(f"No se pudieron importar algunos jobs: {e}")
 

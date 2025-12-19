@@ -62,9 +62,9 @@ def run(ctx=None):
     
     for location in locations:
         location_id = location.get("location_id")
-        location_name = location.get("location_name")
-        nombre_nora_loc = location.get("nombre_nora")
-        api_id = location.get("api_id")
+        location_name = location.get("location_name") or ""
+        nombre_nora_loc = location.get("nombre_nora") or "Sistema"
+        api_id = location.get("api_id") or ""
         
         if not location_id:
             logger.warning(f"Locación sin location_id: {location_name}")

@@ -104,25 +104,78 @@ PYTHONPATH=src python -m automation_hub.runners.run_job gbp.metrics.daily
 
 ### Ejecutar Múltiples Jobs en Batch
 
-Para ejecutar varios jobs en secuencia (ideal para Railway Cron):
+**Modo Recomendado: Base de Datos (default)**
+
+El runner usa la tabla `jobs_config` en Supabase para determinar qué jobs ejecutar y cuándo:
 
 ```bash
-PYTHONPATH=src JOB_LIST=gbp.reviews.daily,gbp.metrics.daily python -m automation_hub.runners.run_batch
+# Ejecuta solo jobs habilitados que estén listos (respeta intervalos)
+PYTHONPATH=src python -m automation_hub.runners.run_batch
 ```
 
-O usando grupos predefinidos:
+La tabla `jobs_config` controla:
+- ✅ Qué jobs están habilitados (`enabled`)
+- ⏱️ Cuándo ejecutar cada job (`schedule_interval_minutes`)
+- 📅 Última ejecución (`last_run_at`)
+- 🔜 Próxima ejecución (`next_run_at` - calculado automáticamente)
+
+**Modo Legacy: Variables de Entorno**
+
+Para ignorar la base de datos y usar variables de entorno:
 
 ```bash
-PYTHONPATH=src JOB_GROUP=daily python -m automation_hub.runners.run_batch
+# Desactivar DB config
+USE_DB_CONFIG=false JOB_LIST=gbp.reviews.daily,gbp.metrics.daily python -m automation_hub.runners.run_batch
+
+# O usando grupos predefinidos
+USE_DB_CONFIG=false JOB_GROUP=daily python -m automation_hub.runners.run_batch
 ```
 
 Grupos disponibles:
 - `tenmin`: Jobs cada 10 minutos
 - `hourly`: Jobs cada hora
-- `daily`: Jobs diarios (incluye GBP reviews y metrics)
+- `daily`: Jobs diarios
 
 Variables opcionales:
+- `USE_DB_CONFIG=false`: Usar variables de entorno en vez de BD (default: true)
 - `FAIL_FAST=true`: Detiene al primer error (default: false)
+
+### Gestionar Jobs desde la BD
+
+**Ver configuración de jobs:**
+```sql
+SELECT job_name, enabled, schedule_interval_minutes, 
+       last_run_at, next_run_at 
+FROM jobs_config 
+ORDER BY job_name;
+```
+
+**Habilitar/deshabilitar un job:**
+```sql
+UPDATE jobs_config 
+SET enabled = false 
+WHERE job_name = 'meta_ads.rechazos.daily';
+```
+
+**Cambiar intervalo de ejecución:**
+```sql
+-- Ejecutar cada hora (60 minutos)
+UPDATE jobs_config 
+SET schedule_interval_minutes = 60 
+WHERE job_name = 'gbp.reviews.daily';
+
+-- Ejecutar cada 6 horas
+UPDATE jobs_config 
+SET schedule_interval_minutes = 360 
+WHERE job_name = 'meta_ads.rechazos.daily';
+```
+
+**Forzar ejecución inmediata:**
+```sql
+UPDATE jobs_config 
+SET next_run_at = NOW() 
+WHERE job_name = 'gbp.metrics.daily';
+```
 
 ### Listar Jobs Disponibles
 
@@ -176,9 +229,10 @@ Consulta `.env.example` para ver todas las variables disponibles:
 - `GBP_METRICS`: Métricas a obtener (default: `WEBSITE_CLICKS,CALL_CLICKS`)
 - `GBP_DAYS_BACK`: Días hacia atrás para métricas (default: 30)
 
-### Batch Runner (opcional)
-- `JOB_LIST`: Lista de jobs separados por coma (ej: `job1,job2`)
-- `JOB_GROUP`: Grupo predefinido (`tenmin`, `hourly`, `daily`)
+### Batch Runner
+- `USE_DB_CONFIG`: Usar jobs_config de Supabase (`true`/`false`, default: `true`)
+- `JOB_LIST`: Lista de jobs separados por coma (solo si USE_DB_CONFIG=false)
+- `JOB_GROUP`: Grupo predefinido (solo si USE_DB_CONFIG=false)
 - `FAIL_FAST`: Detener al primer error (`true`/`false`, default: `false`)
 
 ## Desarrollo

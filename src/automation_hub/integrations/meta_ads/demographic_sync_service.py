@@ -238,6 +238,7 @@ def sync_all_accounts_demographics(
     response = supabase.table('meta_ads_cuentas') \
         .select('id_cuenta_publicitaria') \
         .eq('activo', True) \
+        .eq('estado_actual', 'ACTIVE') \
         .execute()
     
     cuentas = response.data or []

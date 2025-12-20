@@ -27,6 +27,7 @@ def fetch_cuentas_activas(
         supabase.table("meta_ads_cuentas")
         .select("*")
         .eq("activo", True)
+        .eq("estado_actual", "ACTIVE")  # Solo cuentas con estado ACTIVE
     )
     
     if nombre_nora:

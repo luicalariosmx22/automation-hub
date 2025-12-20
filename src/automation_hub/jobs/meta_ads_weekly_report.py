@@ -11,14 +11,16 @@ Configuración:
 """
 
 import os
+import logging
 from datetime import date, timedelta
 from dotenv import load_dotenv
 
 from automation_hub.integrations.meta_ads import MetaAdsReportsService
-from automation_hub.utils.logger import logger
 
 # Load environment variables
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 def run():

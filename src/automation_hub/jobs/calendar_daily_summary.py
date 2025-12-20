@@ -161,9 +161,26 @@ def run():
             }
         )
         
-        # Enviar a todo el equipo por Telegram
-        notifier = TelegramNotifier()
-        notifier.enviar_mensaje(mensaje)
+        # Enviar a todo el equipo por Telegram usando bot de citas
+        bot_token_citas = os.getenv("TELEGRAM_BOT_TOKEN_CITAS", "8556035050:AAF9guBOOEFnMjObUqTMpq-TtvpytUR-IZI")
+        notifier = TelegramNotifier(bot_token=bot_token_citas)
+        
+        # Obtener destinatarios activos
+        destinatarios_response = supabase.table('notificaciones_telegram_config') \
+            .select('chat_id') \
+            .eq('activo', True) \
+            .execute()
+        
+        destinatarios = destinatarios_response.data or []
+        
+        if destinatarios:
+            for dest in destinatarios:
+                chat_id = dest.get('chat_id')
+                notifier.enviar_mensaje(mensaje, chat_id=chat_id)
+                logger.info(f"Resumen enviado a chat {chat_id}")
+        else:
+            # Fallback al chat por defecto
+            notifier.enviar_mensaje(mensaje)
         
         logger.info(f"Resumen diario enviado: {len(citas)} citas")
         logger.info("=== Resumen diario de citas completado ===")
@@ -191,7 +208,8 @@ def run():
                 datos={"error": str(e), "job": "calendar.daily.summary"}
             )
             
-            notifier = TelegramNotifier()
+            bot_token_citas = os.getenv("TELEGRAM_BOT_TOKEN_CITAS", "8556035050:AAF9guBOOEFnMjObUqTMpq-TtvpytUR-IZI")
+            notifier = TelegramNotifier(bot_token=bot_token_citas)
             notifier.enviar_mensaje(mensaje_error)
         except:
             pass

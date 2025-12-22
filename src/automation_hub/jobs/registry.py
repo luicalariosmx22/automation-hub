@@ -56,6 +56,7 @@ def _register_default_jobs():
             gbp_metrics_daily,
             meta_ads_rechazos_daily,
             meta_ads_cuentas_sync_daily,
+            meta_ads_anuncios_daily,
             calendar_sync,
             calendar_daily_summary,
             meta_ads_daily_sync,
@@ -66,6 +67,7 @@ def _register_default_jobs():
         register_job("gbp.metrics.daily", gbp_metrics_daily.run)
         register_job("meta_ads.rechazos.daily", meta_ads_rechazos_daily.run)
         register_job("meta_ads.cuentas.sync.daily", meta_ads_cuentas_sync_daily.run)
+        register_job("meta_ads.anuncios.daily", meta_ads_anuncios_daily.run)
         register_job("calendar.sync", calendar_sync.run)
         register_job("calendar.daily.summary", calendar_daily_summary.run)
         register_job("meta_ads.daily.sync", meta_ads_daily_sync.run)

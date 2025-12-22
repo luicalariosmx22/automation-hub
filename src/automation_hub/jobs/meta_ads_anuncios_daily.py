@@ -234,8 +234,8 @@ def run(ctx=None):
     """
     logger.info(f"Iniciando job: {JOB_NAME}")
     
-    # Fecha a sincronizar (antier para pruebas)
-    fecha = date.today() - timedelta(days=2)
+    # Fecha a sincronizar (ayer - día anterior)
+    fecha = date.today() - timedelta(days=1)
     
     logger.info(f"Sincronizando anuncios para fecha: {fecha}")
     

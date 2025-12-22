@@ -1,14 +1,12 @@
 """
-Job para sincronizar anuncios de Meta Ads diariamente y enviar alertas por Telegram.
+Job para sincronizar anuncios de Meta Ads diariamente.
 
 Este job:
 1. Sincroniza todos los anuncios del día anterior
-2. Analiza rendimiento de anuncios
-3. Envía alertas por Telegram sobre:
-   - Cuentas sin anuncios
-   - Cuentas con solo 1 anuncio
-   - Anuncios con mal rendimiento
-   - Los mejores 3 anuncios del día
+2. Guarda los datos en la tabla meta_ads_anuncios_daily
+3. Envía notificación simple de confirmación
+
+El reporte completo lo envía meta_ads_daily_report.py
 """
 import logging
 import os
@@ -230,7 +228,8 @@ def generar_mensaje_telegram(
 
 def run(ctx=None):
     """
-    Ejecuta el job de sincronización y análisis de anuncios Meta Ads.
+    Ejecuta el job de sincronización de anuncios Meta Ads.
+    Sincroniza datos y envía notificación simple.
     """
     logger.info(f"Iniciando job: {JOB_NAME}")
     
@@ -284,74 +283,26 @@ def run(ctx=None):
     
     logger.info(f"Sincronización completada: {total_anuncios} anuncios, {errores} errores")
     
-    # Análisis de datos sincronizados
-    logger.info("Analizando anuncios sincronizados...")
+    # Enviar notificación simple
+    logger.info("Enviando notificación de confirmación...")
     
-    anuncios = obtener_anuncios_sincronizados(fecha, supabase)
-    logger.info(f"Anuncios a analizar: {len(anuncios)}")
+    icono = "✅" if errores == 0 else "⚠️"
+    mensaje = f"{icono} <b>Sincronización Meta Ads</b>\n"
+    mensaje += f"📅 Fecha: {fecha.strftime('%d/%m/%Y')}\n\n"
+    mensaje += f"📊 Cuentas procesadas: {len(cuentas)}\n"
+    mensaje += f"📢 Anuncios sincronizados: {total_anuncios}\n"
     
-    # Agrupar por cuenta
-    anuncios_por_cuenta = agrupar_por_cuenta(anuncios)
+    if errores > 0:
+        mensaje += f"⚠️ Errores: {errores}\n"
     
-    # Detectar cuentas sin anuncios
-    cuentas_sin_anuncios = []
-    for cuenta in cuentas:
-        cuenta_id = cuenta['id_cuenta_publicitaria']
-        if cuenta_id not in anuncios_por_cuenta or len(anuncios_por_cuenta[cuenta_id]) == 0:
-            nombre_cuenta = cuenta.get('nombre_nora') or cuenta.get('nombre_cuenta', 'N/A')
-            
-            # Simplificar - solo usar el nombre de la cuenta
-            nombre_completo = nombre_cuenta
-            cuentas_sin_anuncios.append((nombre_completo, cuenta_id))
+    mensaje += f"\n🤖 Job: meta_ads.anuncios.daily"
     
-    # Detectar cuentas con 1 solo anuncio
-    cuentas_un_anuncio = []
-    for cuenta_id, ads in anuncios_por_cuenta.items():
-        if len(ads) == 1:
-            nombre = obtener_nombre_cuenta(cuenta_id, supabase)
-            cuentas_un_anuncio.append((nombre, cuenta_id))
-    
-    # Analizar rendimiento de cada anuncio
-    anuncios_buenos = []
-    anuncios_malos = []
-    
-    for anuncio in anuncios:
-        estado, score = analizar_rendimiento_anuncio(anuncio)
-        anuncio['_score'] = score
-        anuncio['_estado'] = estado
-        
-        if estado == 'malo':
-            anuncios_malos.append(anuncio)
-        elif estado in ['excelente', 'bueno']:
-            anuncios_buenos.append(anuncio)
-    
-    # Obtener mejores 3 anuncios
-    mejores_anuncios = sorted(anuncios_buenos, key=lambda x: x['_score'], reverse=True)[:3]
-    
-    logger.info(f"Cuentas sin anuncios: {len(cuentas_sin_anuncios)}")
-    logger.info(f"Cuentas con 1 anuncio: {len(cuentas_un_anuncio)}")
-    logger.info(f"Anuncios con mal rendimiento: {len(anuncios_malos)}")
-    logger.info(f"Mejores anuncios: {len(mejores_anuncios)}")
-    
-    # Generar mensaje de Telegram
-    mensaje = generar_mensaje_telegram(
-        fecha=fecha,
-        total_cuentas=len(cuentas),
-        total_anuncios=total_anuncios,
-        cuentas_sin_anuncios=cuentas_sin_anuncios,
-        cuentas_un_anuncio=cuentas_un_anuncio,
-        anuncios_malos=anuncios_malos,
-        mejores_anuncios=mejores_anuncios
-    )
-    
-    # Enviar mensaje por Telegram
-    logger.info("Enviando reporte por Telegram...")
     enviado = telegram.enviar_mensaje(mensaje)
     
     if enviado:
-        logger.info("✓ Reporte enviado por Telegram exitosamente")
+        logger.info("✓ Notificación enviada")
     else:
-        logger.error("✗ Error al enviar reporte por Telegram")
+        logger.error("✗ Error al enviar notificación")
     
     logger.info(f"Job completado: {JOB_NAME}")
     
@@ -360,7 +311,7 @@ def run(ctx=None):
         'total_cuentas': len(cuentas),
         'total_anuncios': total_anuncios,
         'errores': errores,
-        'mensaje_enviado': enviado
+        'notificacion_enviada': enviado
     }
 
 

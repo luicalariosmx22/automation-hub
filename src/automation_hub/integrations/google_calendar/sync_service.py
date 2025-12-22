@@ -475,6 +475,7 @@ class GoogleCalendarSyncService:
                 'expires_at': (datetime.now() + timedelta(seconds=token_data.get('expires_in', 3600))).isoformat(),
                 'token_type': token_data.get('token_type', 'Bearer'),
                 'scope': token_data.get('scope'),
+                'google_calendar_id': token_data.get('google_calendar_id', 'primary'),  # Por defecto 'primary'
                 'updated_at': datetime.now().isoformat()
             }
             
@@ -485,9 +486,10 @@ class GoogleCalendarSyncService:
                 .execute()
             
             if existing.data:
-                # Actualizar
+                # Actualizar (solo los campos que vienen en token_data)
+                update_data = {k: v for k, v in tokens_to_save.items() if k != 'google_calendar_id' or 'google_calendar_id' in token_data}
                 self.supabase.table('google_calendar_sync') \
-                    .update(tokens_to_save) \
+                    .update(update_data) \
                     .eq('nombre_nora', self.nombre_nora) \
                     .execute()
             else:

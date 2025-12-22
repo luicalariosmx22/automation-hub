@@ -132,10 +132,10 @@ def agrupar_por_cuenta(anuncios: List[dict]) -> Dict[str, List[dict]]:
 
 def obtener_nombre_cuenta(cuenta_id: str, supabase) -> str:
     """
-    Obtiene el nombre de una cuenta con su empresa.
+    Obtiene el nombre de una cuenta.
     """
     response = supabase.table('meta_ads_cuentas') \
-        .select('nombre_cuenta,nombre_nora,empresa_id,cliente_empresas(nombre)') \
+        .select('nombre_cuenta,nombre_nora') \
         .eq('id_cuenta_publicitaria', cuenta_id) \
         .limit(1) \
         .execute()
@@ -143,15 +143,7 @@ def obtener_nombre_cuenta(cuenta_id: str, supabase) -> str:
     if response.data:
         cuenta = response.data[0]
         nombre_cuenta = cuenta.get('nombre_nora') or cuenta.get('nombre_cuenta', 'Sin nombre')
-        
-        # Obtener nombre de empresa
-        empresa = cuenta.get('cliente_empresas')
-        if empresa and isinstance(empresa, dict):
-            nombre_empresa = empresa.get('nombre', 'Sin empresa')
-        else:
-            nombre_empresa = 'Sin empresa'
-        
-        return f"{nombre_empresa} - {nombre_cuenta}"
+        return nombre_cuenta
     return f"Cuenta {cuenta_id[-8:]}"
 
 
@@ -254,7 +246,7 @@ def run(ctx=None):
     
     # Obtener cuentas activas
     response = supabase.table('meta_ads_cuentas') \
-        .select('id_cuenta_publicitaria,nombre_cuenta,nombre_nora,cliente_empresas(nombre)') \
+        .select('id_cuenta_publicitaria,nombre_cuenta,nombre_nora,empresa_id') \
         .eq('activo', True) \
         .execute()
     
@@ -308,14 +300,8 @@ def run(ctx=None):
         if cuenta_id not in anuncios_por_cuenta or len(anuncios_por_cuenta[cuenta_id]) == 0:
             nombre_cuenta = cuenta.get('nombre_nora') or cuenta.get('nombre_cuenta', 'N/A')
             
-            # Obtener nombre de empresa
-            empresa = cuenta.get('cliente_empresas')
-            if empresa and isinstance(empresa, dict):
-                nombre_empresa = empresa.get('nombre', 'Sin empresa')
-            else:
-                nombre_empresa = 'Sin empresa'
-            
-            nombre_completo = f"{nombre_empresa} - {nombre_cuenta}"
+            # Simplificar - solo usar el nombre de la cuenta
+            nombre_completo = nombre_cuenta
             cuentas_sin_anuncios.append((nombre_completo, cuenta_id))
     
     # Detectar cuentas con 1 solo anuncio

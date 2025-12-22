@@ -2,13 +2,7 @@
 nixPkgs = ["python311"]
 
 [phases.install]
-cmds = [
-    "pip install --upgrade pip",
-    "pip install -r requirements.txt"
-]
+cmds = ["pip install -r requirements.txt"]
 
 [start]
-cmd = "cd /app && PYTHONPATH=/app/src python -m automation_hub.runners.run_batch"
-
-[variables]
-PYTHONPATH = "/app/src"
+cmd = "PYTHONPATH=/app/src python -m automation_hub.runners.run_batch"

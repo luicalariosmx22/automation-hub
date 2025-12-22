@@ -13,7 +13,7 @@ Este job:
 import logging
 import os
 from datetime import date, timedelta
-from typing import Dict, List, Tuple
+from typing import Dict, List, Sequence, Tuple, cast
 from automation_hub.integrations.meta_ads.daily_sync_service import MetaAdsDailySyncService
 from automation_hub.db.supabase_client import create_client_from_env
 from automation_hub.integrations.telegram.notifier import TelegramNotifier
@@ -258,7 +258,7 @@ def run(ctx=None):
         .eq('activo', True) \
         .execute()
     
-    cuentas = response.data or []
+    cuentas = cast(List[dict], response.data) if response.data else []
     logger.info(f"Cuentas activas: {len(cuentas)}")
     
     # Sincronizar cada cuenta

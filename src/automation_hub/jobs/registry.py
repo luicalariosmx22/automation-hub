@@ -60,7 +60,8 @@ def _register_default_jobs():
             calendar_sync,
             calendar_daily_summary,
             meta_ads_daily_sync,
-            meta_ads_weekly_report
+            meta_ads_weekly_report,
+            meta_to_gbp_daily
         )
         
         register_job("gbp.reviews.daily", gbp_reviews_daily.run)
@@ -72,6 +73,7 @@ def _register_default_jobs():
         register_job("calendar.daily.summary", calendar_daily_summary.run)
         register_job("meta_ads.daily.sync", meta_ads_daily_sync.run)
         register_job("meta_ads.weekly.report", meta_ads_weekly_report.run)
+        register_job("meta.to_gbp.daily", meta_to_gbp_daily.run)
     except ImportError as e:
         logger.warning(f"No se pudieron importar algunos jobs: {e}")
 

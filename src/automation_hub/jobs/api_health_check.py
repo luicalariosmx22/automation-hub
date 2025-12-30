@@ -154,7 +154,7 @@ def verificar_google_oauth() -> Tuple[bool, str]:
         if not all([client_id, client_secret, refresh_token]):
             return False, "Credenciales incompletas"
         
-        if "REDACTED" in client_secret:
+        if client_secret and "REDACTED" in client_secret:
             return False, "Client Secret es REDACTED"
         
         # Intentar refrescar token
@@ -320,8 +320,8 @@ def verificar_railway() -> Tuple[bool, str]:
             return False, "Configuración incompleta"
         
         # Validar que tengan formato correcto
-        if len(token) < 30:
-            return False, "Token muy corto"
+        if not token or len(token) < 30:
+            return False, "Token muy corto o vacío"
         
         return True, "Credenciales configuradas"
             
@@ -339,10 +339,10 @@ def verificar_meta_webhook() -> Tuple[bool, str]:
         if not all([verify_token, webhook_url, webhook_secret]):
             return False, "Configuración incompleta"
         
-        if "REDACTED" in verify_token or "REDACTED" in webhook_secret:
+        if (verify_token and "REDACTED" in verify_token) or (webhook_secret and "REDACTED" in webhook_secret):
             return False, "Tokens son REDACTED"
         
-        if not webhook_url.startswith("https://"):
+        if webhook_url and not webhook_url.startswith("https://"):
             return False, "URL debe ser HTTPS"
         
         return True, "Configuración OK"
@@ -360,11 +360,11 @@ def verificar_meta_app() -> Tuple[bool, str]:
         if not all([app_id, app_secret]):
             return False, "Configuración incompleta"
         
-        if "REDACTED" in app_secret:
+        if app_secret and "REDACTED" in app_secret:
             return False, "App Secret es REDACTED"
         
         # Validar que app_id sea numérico
-        if not app_id.isdigit():
+        if app_id and not app_id.isdigit():
             return False, "App ID inválido"
         
         return True, "Configuración OK"

@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nora AI - Automation Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }  
+        .status-active { background-color: #10b981; color: white; }
+        .status-inactive { background-color: #6b7280; color: white; }
+        .status-running { background-color: #3b82f6; color: white; animation: pulse 2s infinite; }
+        .status-error { background-color: #ef4444; color: white; }
+        .status-success { background-color: #22c55e; color: white; }
+        .status-pending { background-color: #f59e0b; color: white; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .job-card {
+            transition: all 0.3s ease;
+        }
+        
+        .job-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .time-diff-overdue { color: #ef4444; font-weight: 600; }
+        .time-diff-soon { color: #f59e0b; font-weight: 600; }
+        .time-diff-normal { color: #6b7280; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-6 max-w-7xl">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 rounded-xl shadow-xl p-6 mb-6 text-white">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <img src="https://soynoraai.com/wp-content/uploads/2025/06/logo_nora.png" alt="Nora AI" class="h-16 w-auto">
+                    <div>
+                        <h1 class="text-4xl font-bold mb-2">Automation Hub</h1>
+                        <p class="text-indigo-100">Panel de Control de Jobs Automatizados · Powered by Nora AI</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <a href="telegram-system.html" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition font-semibold flex items-center gap-2">
+                        📢 Sistema Telegram
+                    </a>
+                    <a href="notifications-manager.html" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition font-semibold flex items-center gap-2">
+                        👥 Destinatarios
+                    </a>
+                    <div class="text-right">
+                        <div class="text-sm text-indigo-100 mb-1">Hora México (UTC-7)</div>
+                        <div id="currentTime" class="text-2xl font-bold font-mono"></div>
+                        <div class="text-xs text-indigo-200 mt-1">Auto-refresh: <span id="refreshCountdown">30</span>s</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Total</p>
+                        <p id="totalJobs" class="text-3xl font-bold text-gray-800">-</p>
+                    </div>
+                    <div class="text-4xl">📊</div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Activos</p>
+                        <p id="activeJobs" class="text-3xl font-bold text-green-600">-</p>
+                    </div>
+                    <div class="text-4xl">✅</div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Meta Ads</p>
+                        <p id="metaAdsJobs" class="text-3xl font-bold text-blue-600">-</p>
+                    </div>
+                    <div class="text-4xl">📱</div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">GBP</p>
+                        <p id="gbpJobs" class="text-3xl font-bold text-green-600">-</p>
+                    </div>
+                    <div class="text-4xl">🏢</div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Calendar</p>
+                        <p id="calendarJobs" class="text-3xl font-bold text-orange-600">-</p>
+                    </div>
+                    <div class="text-4xl">📅</div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Meta→GBP</p>
+                        <p id="metaToGbpJobs" class="text-3xl font-bold text-purple-600">-</p>
+                    </div>
+                    <div class="text-4xl">🔄</div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Pendientes</p>
+                        <p id="pendingJobs" class="text-3xl font-bold text-red-600">-</p>
+                    </div>
+                    <div class="text-4xl">⏰</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="bg-white rounded-lg shadow-lg p-4 mb-6">
+            <div class="flex flex-wrap gap-3 items-center">
+                <button onclick="refreshJobs()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-semibold">
+                    🔄 Actualizar
+                </button>
+                <button onclick="toggleAutoRefresh()" id="autoRefreshBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition font-semibold">
+                    ⏸️ Pausar Auto-refresh
+                </button>
+                <select id="filterModule" onchange="applyFilters()" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="all">📦 Todos los módulos</option>
+                    <option value="meta_ads">📱 Meta Ads</option>
+                    <option value="gbp">🏢 Google Business Profile</option>
+                    <option value="calendar">📅 Google Calendar</option>
+                    <option value="meta_to_gbp">🔄 Meta → GBP</option>
+                </select>
+                <select id="filterStatus" onchange="applyFilters()" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="all">🎯 Todos los estados</option>
+                    <option value="active">✅ Solo activos</option>
+                    <option value="inactive">⏸️ Solo inactivos</option>
+                </select>
+                <input type="text" id="searchInput" onkeyup="applyFilters()" placeholder="🔍 Buscar por nombre..." class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent flex-1 min-w-[200px]">
+            </div>
+        </div>
+
+        <!-- Jobs Grid -->
+        <div id="jobsContainer" class="space-y-4">
+            <div class="text-center py-12">
+                <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p class="text-gray-500">Cargando jobs...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        let allJobs = [];
+        let autoRefreshInterval = null;
+        let countdownInterval = null;
+        let isAutoRefreshActive = true;
+        let remainingSeconds = 30;
+
+        // Inicializar
+        window.addEventListener('DOMContentLoaded', () => {
+            refreshJobs();
+            updateCurrentTime();
+            setInterval(updateCurrentTime, 1000);
+            startAutoRefresh();
+        });
+
+        function updateCurrentTime() {
+            const now = new Date();
+            // UTC-7 para México
+            const mexicoTime = new Date(now.getTime() - (7 * 60 * 60 * 1000));
+            const timeStr = mexicoTime.toISOString().substr(11, 8);
+            const dateStr = mexicoTime.toISOString().substr(0, 10);
+            document.getElementById('currentTime').textContent = timeStr;
+        }
+
+        function startAutoRefresh() {
+            if (autoRefreshInterval) return;
+            
+            remainingSeconds = 30;
+            autoRefreshInterval = setInterval(() => {
+                refreshJobs();
+                remainingSeconds = 30;
+            }, 30000);
+            
+            countdownInterval = setInterval(() => {
+                remainingSeconds--;
+                document.getElementById('refreshCountdown').textContent = remainingSeconds;
+            }, 1000);
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+        }
+
+        function toggleAutoRefresh() {
+            isAutoRefreshActive = !isAutoRefreshActive;
+            const btn = document.getElementById('autoRefreshBtn');
+            
+            if (isAutoRefreshActive) {
+                startAutoRefresh();
+                btn.textContent = '⏸️ Pausar Auto-refresh';
+                btn.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+                btn.classList.add('bg-green-600', 'hover:bg-green-700');
+            } else {
+                stopAutoRefresh();
+                btn.textContent = '▶️ Reanudar Auto-refresh';
+                btn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                btn.classList.add('bg-gray-600', 'hover:bg-gray-700');
+                document.getElementById('refreshCountdown').textContent = '-';
+            }
+        }
+
+        async function refreshJobs() {
+            try {
+                const response = await fetch(`${API_URL}/jobs`);
+                const result = await response.json();
+
+                if (result.success) {
+                    allJobs = result.data;
+                    updateStats();
+                    applyFilters();
+                } else {
+                    showError('Error cargando jobs: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error loading jobs:', error);
+                showError('❌ Error conectando al servidor. ¿Está corriendo en http://localhost:5000?');
+            }
+        }
+
+        function updateStats() {
+            const active = allJobs.filter(j => j.enabled).length;
+            const pending = allJobs.filter(j => j.enabled && isPending(j)).length;
+            
+            // Contar por módulo
+            const metaAds = allJobs.filter(j => {
+                const name = j.job_name.toLowerCase();
+                return name.startsWith('meta_ads') || name.includes('meta.ads');
+            }).length;
+            
+            const gbp = allJobs.filter(j => {
+                const name = j.job_name.toLowerCase();
+                return (name.startsWith('gbp') || name.includes('gbp')) && !name.includes('meta.to_gbp');
+            }).length;
+            
+            const calendar = allJobs.filter(j => {
+                const name = j.job_name.toLowerCase();
+                return name.startsWith('calendar') || name.includes('calendar');
+            }).length;
+            
+            const metaToGbp = allJobs.filter(j => {
+                const name = j.job_name.toLowerCase();
+                return name.includes('meta.to_gbp') || name.includes('meta_to_gbp');
+            }).length;
+            
+            document.getElementById('totalJobs').textContent = allJobs.length;
+            document.getElementById('activeJobs').textContent = active;
+            document.getElementById('pendingJobs').textContent = pending;
+            document.getElementById('metaAdsJobs').textContent = metaAds;
+            document.getElementById('gbpJobs').textContent = gbp;
+            document.getElementById('calendarJobs').textContent = calendar;
+            document.getElementById('metaToGbpJobs').textContent = metaToGbp;
+        }
+
+        function applyFilters() {
+            const filterModule = document.getElementById('filterModule').value;
+            const filterStatus = document.getElementById('filterStatus').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            
+            let filtered = allJobs;
+            
+            // Filtrar por módulo
+            if (filterModule !== 'all') {
+                filtered = filtered.filter(j => {
+                    const jobName = j.job_name.toLowerCase();
+                    if (filterModule === 'meta_ads') {
+                        return jobName.startsWith('meta_ads') || jobName.includes('meta.ads');
+                    } else if (filterModule === 'gbp') {
+                        return jobName.startsWith('gbp') || jobName.includes('gbp');
+                    } else if (filterModule === 'calendar') {
+                        return jobName.startsWith('calendar') || jobName.includes('calendar');
+                    } else if (filterModule === 'meta_to_gbp') {
+                        return jobName.includes('meta.to_gbp') || jobName.includes('meta_to_gbp');
+                    }
+                    return true;
+                });
+            }
+            
+            // Filtrar por estado
+            if (filterStatus === 'active') {
+                filtered = filtered.filter(j => j.enabled);
+            } else if (filterStatus === 'inactive') {
+                filtered = filtered.filter(j => !j.enabled);
+            }
+            
+            // Filtrar por búsqueda
+            if (search) {
+                filtered = filtered.filter(j => 
+                    j.job_name.toLowerCase().includes(search) ||
+                    (j.config?.description || '').toLowerCase().includes(search)
+                );
+            }
+            
+            renderJobs(filtered);
+        }
+
+        function renderJobs(jobs) {
+            const container = document.getElementById('jobsContainer');
+            
+            if (!jobs || jobs.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-lg shadow p-12 text-center">
+                        <div class="text-6xl mb-4">📋</div>
+                        <p class="text-gray-500 text-lg">No hay jobs que mostrar</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = jobs.map(job => {
+                const status = getJobStatus(job);
+                const timeDiff = getTimeDifference(job.next_run_at);
+                const moduleInfo = getModuleInfo(job.job_name);
+                
+                return `
+                    <div class="job-card bg-white rounded-xl shadow-lg p-6 border-l-4 ${status.borderClass}">
+                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                            <!-- Left: Job Info -->
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-3 flex-wrap">
+                                    <h3 class="text-xl font-bold text-gray-800">${job.job_name}</h3>
+                                    <span class="px-3 py-1 rounded-full text-xs font-semibold ${moduleInfo.bgClass} ${moduleInfo.textClass}">
+                                        ${moduleInfo.icon} ${moduleInfo.name}
+                                    </span>
+                                    <span class="status-badge ${status.class}">
+                                        ${status.icon} ${status.text}
+                                    </span>
+                                </div>
+                                
+                                ${job.config?.description ? `
+                                    <p class="text-gray-600 mb-3 text-sm">${job.config.description}</p>
+                                ` : ''}
+                                
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                    <div>
+                                        <p class="text-gray-500 mb-1">⏱️ Frecuencia</p>
+                                        <p class="font-semibold text-gray-800">${formatInterval(job.schedule_interval_minutes)}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500 mb-1">🕐 Última ejecución</p>
+                                        <p class="font-semibold text-gray-800">${formatDateMexico(job.last_run_at)}</p>
+                                        ${job.last_run_at ? `<p class="text-xs text-gray-400">${getRelativeTime(job.last_run_at)}</p>` : ''}
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500 mb-1">📅 Próxima ejecución</p>
+                                        <p class="font-semibold text-gray-800">${formatDateMexico(job.next_run_at)}</p>
+                                        ${job.next_run_at ? `<p class="text-xs ${timeDiff.class}">${timeDiff.text}</p>` : ''}
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500 mb-1">📊 Estado</p>
+                                        <p class="font-semibold ${job.enabled ? 'text-green-600' : 'text-gray-400'}">
+                                            ${job.enabled ? '✓ Habilitado' : '✗ Deshabilitado'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Right: Actions -->
+                            <div class="flex flex-col gap-2 lg:items-end">
+                                <button onclick="runJobManually('${job.job_name}')" 
+                                        class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold whitespace-nowrap">
+                                    ▶️ Ejecutar ahora
+                                </button>
+                                <button onclick="toggleJobEnabled('${job.job_name}', ${!job.enabled})" 
+                                        class="${job.enabled ? 'bg-gray-500 hover:bg-gray-600' : 'bg-green-500 hover:bg-green-600'} text-white px-4 py-2 rounded-lg transition text-sm font-semibold whitespace-nowrap">
+                                    ${job.enabled ? '⏸️ Desactivar' : '▶️ Activar'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getModuleInfo(jobName) {
+            const name = jobName.toLowerCase();
+            
+            if (name.startsWith('meta_ads') || name.includes('meta.ads')) {
+                return {
+                    name: 'Meta Ads',
+                    icon: '📱',
+                    bgClass: 'bg-blue-100',
+                    textClass: 'text-blue-800'
+                };
+            } else if (name.includes('meta.to_gbp') || name.includes('meta_to_gbp')) {
+                return {
+                    name: 'Meta → GBP',
+                    icon: '🔄',
+                    bgClass: 'bg-purple-100',
+                    textClass: 'text-purple-800'
+                };
+            } else if (name.startsWith('gbp') || name.includes('gbp')) {
+                return {
+                    name: 'GBP',
+                    icon: '🏢',
+                    bgClass: 'bg-green-100',
+                    textClass: 'text-green-800'
+                };
+            } else if (name.startsWith('calendar') || name.includes('calendar')) {
+                return {
+                    name: 'Calendar',
+                    icon: '📅',
+                    bgClass: 'bg-orange-100',
+                    textClass: 'text-orange-800'
+                };
+            } else if (name.includes('telegram')) {
+                return {
+                    name: 'Telegram',
+                    icon: '💬',
+                    bgClass: 'bg-cyan-100',
+                    textClass: 'text-cyan-800'
+                };
+            } else {
+                return {
+                    name: 'Otro',
+                    icon: '⚙️',
+                    bgClass: 'bg-gray-100',
+                    textClass: 'text-gray-800'
+                };
+            }
+        }
+
+        function getJobStatus(job) {
+            if (!job.enabled) {
+                return {
+                    class: 'status-inactive',
+                    icon: '⏸️',
+                    text: 'Inactivo',
+                    borderClass: 'border-gray-400'
+                };
+            }
+            
+            if (!job.last_run_at) {
+                return {
+                    class: 'status-pending',
+                    icon: '⏰',
+                    text: 'Nunca ejecutado',
+                    borderClass: 'border-orange-500'
+                };
+            }
+            
+            if (isPending(job)) {
+                return {
+                    class: 'status-pending',
+                    icon: '⏰',
+                    text: 'Pendiente',
+                    borderClass: 'border-orange-500'
+                };
+            }
+            
+            return {
+                class: 'status-success',
+                icon: '✅',
+                text: 'OK',
+                borderClass: 'border-green-500'
+            };
+        }
+
+        function isPending(job) {
+            if (!job.next_run_at) return false;
+            const now = new Date();
+            const nextRun = new Date(job.next_run_at);
+            return nextRun <= now;
+        }
+
+        function formatInterval(minutes) {
+            if (!minutes) return 'No configurado';
+            if (minutes === 1440) return '🌅 Diario (24h)';
+            if (minutes === 60) return '⏰ Cada hora';
+            if (minutes === 30) return '⏱️ Cada 30 min';
+            if (minutes === 15) return '⚡ Cada 15 min';
+            if (minutes === 5) return '🚀 Cada 5 min';
+            if (minutes < 60) return `Cada ${minutes} min`;
+            const hours = Math.floor(minutes / 60);
+            return `Cada ${hours}h`;
+        }
+
+        function formatDateMexico(dateStr) {
+            if (!dateStr) return '—';
+            const utcDate = new Date(dateStr);
+            // UTC-7 para México
+            const mexicoDate = new Date(utcDate.getTime() - (7 * 60 * 60 * 1000));
+            const date = mexicoDate.toISOString().substr(0, 10);
+            const time = mexicoDate.toISOString().substr(11, 5);
+            return `${date} ${time}`;
+        }
+
+        function getRelativeTime(dateStr) {
+            if (!dateStr) return '';
+            const past = new Date(dateStr);
+            const now = new Date();
+            const diffMs = now - past;
+            const diffMins = Math.floor(diffMs / 60000);
+            
+            if (diffMins < 1) return 'hace menos de 1 min';
+            if (diffMins < 60) return `hace ${diffMins} min`;
+            const diffHours = Math.floor(diffMins / 60);
+            if (diffHours < 24) return `hace ${diffHours}h`;
+            const diffDays = Math.floor(diffHours / 24);
+            return `hace ${diffDays} día${diffDays > 1 ? 's' : ''}`;
+        }
+
+        function getTimeDifference(dateStr) {
+            if (!dateStr) return { text: '—', class: 'time-diff-normal' };
+            
+            const future = new Date(dateStr);
+            const now = new Date();
+            const diffMs = future - now;
+            const diffMins = Math.floor(diffMs / 60000);
+            
+            if (diffMins < 0) {
+                const absMins = Math.abs(diffMins);
+                if (absMins < 60) return { 
+                    text: `⚠️ Atrasado ${absMins} min`, 
+                    class: 'time-diff-overdue' 
+                };
+                const hours = Math.floor(absMins / 60);
+                return { 
+                    text: `⚠️ Atrasado ${hours}h`, 
+                    class: 'time-diff-overdue' 
+                };
+            }
+            
+            if (diffMins < 15) return { 
+                text: `🔥 En ${diffMins} min`, 
+                class: 'time-diff-soon' 
+            };
+            if (diffMins < 60) return { 
+                text: `En ${diffMins} min`, 
+                class: 'time-diff-soon' 
+            };
+            const hours = Math.floor(diffMins / 60);
+            if (hours < 24) return { 
+                text: `En ${hours}h`, 
+                class: 'time-diff-normal' 
+            };
+            const days = Math.floor(hours / 24);
+            return { 
+                text: `En ${days} día${days > 1 ? 's' : ''}`, 
+                class: 'time-diff-normal' 
+            };
+        }
+
+        async function runJobManually(jobName) {
+            if (!confirm(`¿Ejecutar ${jobName} manualmente ahora?`)) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/jobs/${jobName}/run`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Job ${jobName} ejecutado exitosamente`);
+                    refreshJobs();
+                } else {
+                    alert(`❌ Error: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error ejecutando job: ${error.message}`);
+            }
+        }
+
+        async function toggleJobEnabled(jobName, newState) {
+            try {
+                const response = await fetch(`${API_URL}/jobs/${jobName}/toggle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: newState })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    refreshJobs();
+                } else {
+                    alert(`❌ Error: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        function showError(message) {
+            const container = document.getElementById('jobsContainer');
+            container.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
+                    <div class="text-6xl mb-4">⚠️</div>
+                    <p class="text-red-600 text-lg font-semibold">${message}</p>
+                    <button onclick="refreshJobs()" class="mt-4 bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition">
+                        🔄 Reintentar
+                    </button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

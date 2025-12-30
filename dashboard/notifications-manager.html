@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nora AI - Gestión de Notificaciones</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        .badge-active { background-color: #10b981; color: white; }
+        .badge-inactive { background-color: #6b7280; color: white; }
+        .badge-alta { background-color: #ef4444; color: white; }
+        .badge-media { background-color: #f59e0b; color: white; }
+        .badge-baja { background-color: #3b82f6; color: white; }
+        
+        .card {
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .chip {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background-color: #e5e7eb;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            margin: 0.125rem;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-6 max-w-7xl">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 rounded-xl shadow-xl p-6 mb-6 text-white">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <img src="https://soynoraai.com/wp-content/uploads/2025/06/logo_nora.png" alt="Nora AI" class="h-16 w-auto">
+                    <div>
+                        <h1 class="text-4xl font-bold mb-2">Gestión de Notificaciones</h1>
+                        <p class="text-indigo-100">Configuración de destinatarios Telegram · Powered by Nora AI</p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <a href="/" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition font-semibold">
+                        🏠 Dashboard
+                    </a>
+                    <a href="telegram-system.html" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition font-semibold">
+                        📢 Sistema Telegram
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Total Contactos</p>
+                        <p id="totalContactos" class="text-3xl font-bold text-gray-800">-</p>
+                    </div>
+                    <div class="text-4xl">👥</div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Activos</p>
+                        <p id="contactosActivos" class="text-3xl font-bold text-green-600">-</p>
+                    </div>
+                    <div class="text-4xl">✅</div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Clientes</p>
+                        <p id="totalClientes" class="text-3xl font-bold text-blue-600">-</p>
+                    </div>
+                    <div class="text-4xl">🏢</div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Sistema</p>
+                        <p id="contactosSistema" class="text-3xl font-bold text-purple-600">-</p>
+                    </div>
+                    <div class="text-4xl">⚙️</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="bg-white rounded-lg shadow-lg p-4 mb-6">
+            <div class="flex flex-wrap gap-3 items-center">
+                <button onclick="showAddModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition font-semibold">
+                    ➕ Agregar Contacto
+                </button>
+                <button onclick="refreshContacts()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-semibold">
+                    🔄 Actualizar
+                </button>
+                <select id="filterCliente" onchange="applyFilters()" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <option value="all">🏢 Todos los clientes</option>
+                </select>
+                <select id="filterEstado" onchange="applyFilters()" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <option value="all">🎯 Todos los estados</option>
+                    <option value="active">✅ Solo activos</option>
+                    <option value="inactive">⏸️ Solo inactivos</option>
+                </select>
+                <input type="text" id="searchInput" onkeyup="applyFilters()" placeholder="🔍 Buscar por nombre o chat ID..." class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent flex-1 min-w-[200px]">
+            </div>
+        </div>
+
+        <!-- Contacts Grid -->
+        <div id="contactsContainer" class="space-y-4">
+            <div class="text-center py-12">
+                <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                <p class="text-gray-500">Cargando contactos...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Agregar/Editar Contacto -->
+    <div id="contactModal" class="modal">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h2 id="modalTitle" class="text-2xl font-bold text-gray-800">Agregar Contacto</h2>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+            </div>
+            
+            <form id="contactForm" onsubmit="saveContact(event)" class="space-y-4">
+                <input type="hidden" id="contactId">
+                
+                <!-- Información básica -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Cliente / Nombre Nora *</label>
+                        <input type="text" id="nombreNora" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <p class="text-xs text-gray-500 mt-1">Ej: "Sistema", "Luis", "YUSEF"</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Chat ID de Telegram *</label>
+                        <input type="text" id="chatId" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <p class="text-xs text-gray-500 mt-1">Número o ID del chat/grupo</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Nombre del Contacto</label>
+                    <input type="text" id="nombreContacto" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <p class="text-xs text-gray-500 mt-1">Nombre descriptivo del destinatario</p>
+                </div>
+                
+                <!-- Filtros de Jobs -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Jobs Permitidos</label>
+                    <div id="jobsCheckboxes" class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                        <!-- Se llenará dinámicamente -->
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Dejar vacío para permitir TODOS los jobs</p>
+                </div>
+                
+                <!-- Prioridades -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Prioridades Permitidas</label>
+                    <div class="flex gap-3">
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" value="alta" class="prioridad-checkbox rounded">
+                            <span class="badge badge-alta">Alta</span>
+                        </label>
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" value="media" class="prioridad-checkbox rounded">
+                            <span class="badge badge-media">Media</span>
+                        </label>
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" value="baja" class="prioridad-checkbox rounded">
+                            <span class="badge badge-baja">Baja</span>
+                        </label>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Dejar vacío para permitir TODAS las prioridades</p>
+                </div>
+                
+                <!-- Tipos de Alerta -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Tipos de Alerta Específicos</label>
+                    <input type="text" id="tiposAlerta" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                    <p class="text-xs text-gray-500 mt-1">Separados por comas. Ej: cuenta_desactivada,meta_ads_rechazados (vacío = todos)</p>
+                </div>
+                
+                <!-- Notas -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Notas</label>
+                    <textarea id="notas" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"></textarea>
+                </div>
+                
+                <!-- Estado -->
+                <div>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="activo" checked class="rounded">
+                        <span class="text-sm font-semibold text-gray-700">Contacto Activo</span>
+                    </label>
+                </div>
+                
+                <!-- Botones -->
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition font-semibold">
+                        💾 Guardar
+                    </button>
+                    <button type="button" onclick="closeModal()" class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-semibold">
+                        Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        let allContacts = [];
+        let allJobs = [];
+
+        // Inicializar
+        window.addEventListener('DOMContentLoaded', () => {
+            loadJobs();
+            refreshContacts();
+        });
+
+        async function loadJobs() {
+            try {
+                const response = await fetch(`${API_URL}/jobs`);
+                const result = await response.json();
+                if (result.success) {
+                    allJobs = result.data.map(j => j.job_name);
+                }
+            } catch (error) {
+                console.error('Error cargando jobs:', error);
+            }
+        }
+
+        async function refreshContacts() {
+            try {
+                const response = await fetch(`${API_URL}/notifications/contacts`);
+                const result = await response.json();
+
+                if (result.success) {
+                    allContacts = result.data;
+                    updateStats();
+                    updateClientFilter();
+                    applyFilters();
+                } else {
+                    showError('Error cargando contactos: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error loading contacts:', error);
+                showError('❌ Error conectando al servidor. ¿Está corriendo en http://localhost:5000?');
+            }
+        }
+
+        function updateStats() {
+            const activos = allContacts.filter(c => c.activo).length;
+            const clientes = new Set(allContacts.map(c => c.nombre_nora)).size;
+            const sistema = allContacts.filter(c => c.nombre_nora === 'Sistema').length;
+            
+            document.getElementById('totalContactos').textContent = allContacts.length;
+            document.getElementById('contactosActivos').textContent = activos;
+            document.getElementById('totalClientes').textContent = clientes;
+            document.getElementById('contactosSistema').textContent = sistema;
+        }
+
+        function updateClientFilter() {
+            const select = document.getElementById('filterCliente');
+            const clientes = [...new Set(allContacts.map(c => c.nombre_nora))].sort();
+            
+            select.innerHTML = '<option value="all">🏢 Todos los clientes</option>';
+            clientes.forEach(cliente => {
+                const option = document.createElement('option');
+                option.value = cliente;
+                option.textContent = cliente;
+                select.appendChild(option);
+            });
+        }
+
+        function applyFilters() {
+            const filterCliente = document.getElementById('filterCliente').value;
+            const filterEstado = document.getElementById('filterEstado').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            
+            let filtered = allContacts;
+            
+            // Filtrar por cliente
+            if (filterCliente !== 'all') {
+                filtered = filtered.filter(c => c.nombre_nora === filterCliente);
+            }
+            
+            // Filtrar por estado
+            if (filterEstado === 'active') {
+                filtered = filtered.filter(c => c.activo);
+            } else if (filterEstado === 'inactive') {
+                filtered = filtered.filter(c => !c.activo);
+            }
+            
+            // Filtrar por búsqueda
+            if (search) {
+                filtered = filtered.filter(c => 
+                    c.nombre_nora.toLowerCase().includes(search) ||
+                    c.chat_id.toLowerCase().includes(search) ||
+                    (c.nombre_contacto || '').toLowerCase().includes(search)
+                );
+            }
+            
+            renderContacts(filtered);
+        }
+
+        function renderContacts(contacts) {
+            const container = document.getElementById('contactsContainer');
+            
+            if (!contacts || contacts.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-lg shadow p-12 text-center">
+                        <div class="text-6xl mb-4">📭</div>
+                        <p class="text-gray-500 text-lg">No hay contactos que mostrar</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = contacts.map(contact => `
+                <div class="card bg-white rounded-xl shadow-lg p-6 border-l-4 ${contact.activo ? 'border-green-500' : 'border-gray-400'}">
+                    <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                        <!-- Left: Contact Info -->
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-3 flex-wrap">
+                                <h3 class="text-xl font-bold text-gray-800">${contact.nombre_contacto || contact.nombre_nora}</h3>
+                                <span class="badge ${contact.activo ? 'badge-active' : 'badge-inactive'}">
+                                    ${contact.activo ? '✅ Activo' : '⏸️ Inactivo'}
+                                </span>
+                                ${contact.nombre_nora === 'Sistema' ? '<span class="badge" style="background:#8b5cf6;color:white">⚙️ Sistema</span>' : ''}
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-3">
+                                <div>
+                                    <p class="text-gray-500 mb-1">👤 Cliente</p>
+                                    <p class="font-semibold text-gray-800">${contact.nombre_nora}</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500 mb-1">💬 Chat ID</p>
+                                    <p class="font-semibold text-gray-800 font-mono">${contact.chat_id}</p>
+                                </div>
+                            </div>
+                            
+                            ${contact.jobs_permitidos ? `
+                                <div class="mb-2">
+                                    <p class="text-gray-500 text-sm mb-1">🔔 Jobs permitidos (${contact.jobs_permitidos.length}):</p>
+                                    <div class="flex flex-wrap gap-1">
+                                        ${contact.jobs_permitidos.slice(0, 3).map(job => `<span class="chip text-xs">${job}</span>`).join('')}
+                                        ${contact.jobs_permitidos.length > 3 ? `<span class="chip text-xs">+${contact.jobs_permitidos.length - 3} más</span>` : ''}
+                                    </div>
+                                </div>
+                            ` : '<p class="text-gray-500 text-sm mb-2">🔔 Recibe notificaciones de <strong>TODOS</strong> los jobs</p>'}
+                            
+                            ${contact.prioridades_permitidas ? `
+                                <div class="mb-2">
+                                    <p class="text-gray-500 text-sm mb-1">⚡ Prioridades:</p>
+                                    <div class="flex gap-2">
+                                        ${contact.prioridades_permitidas.map(p => `<span class="badge badge-${p}">${p.toUpperCase()}</span>`).join('')}
+                                    </div>
+                                </div>
+                            ` : '<p class="text-gray-500 text-sm mb-2">⚡ Recibe <strong>TODAS</strong> las prioridades</p>'}
+                            
+                            ${contact.notas ? `<p class="text-gray-600 text-sm italic mt-2">📝 ${contact.notas}</p>` : ''}
+                        </div>
+                        
+                        <!-- Right: Actions -->
+                        <div class="flex flex-col gap-2 lg:items-end">
+                            <button onclick="editContact(${contact.id})" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold whitespace-nowrap">
+                                ✏️ Editar
+                            </button>
+                            <button onclick="toggleContact(${contact.id}, ${!contact.activo})" class="${contact.activo ? 'bg-gray-500 hover:bg-gray-600' : 'bg-green-500 hover:bg-green-600'} text-white px-4 py-2 rounded-lg transition text-sm font-semibold whitespace-nowrap">
+                                ${contact.activo ? '⏸️ Desactivar' : '▶️ Activar'}
+                            </button>
+                            <button onclick="deleteContact(${contact.id})" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition text-sm font-semibold whitespace-nowrap">
+                                🗑️ Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showAddModal() {
+            document.getElementById('modalTitle').textContent = 'Agregar Contacto';
+            document.getElementById('contactForm').reset();
+            document.getElementById('contactId').value = '';
+            document.getElementById('activo').checked = true;
+            populateJobsCheckboxes();
+            document.getElementById('contactModal').classList.add('active');
+        }
+
+        function editContact(id) {
+            const contact = allContacts.find(c => c.id === id);
+            if (!contact) return;
+            
+            document.getElementById('modalTitle').textContent = 'Editar Contacto';
+            document.getElementById('contactId').value = contact.id;
+            document.getElementById('nombreNora').value = contact.nombre_nora;
+            document.getElementById('chatId').value = contact.chat_id;
+            document.getElementById('nombreContacto').value = contact.nombre_contacto || '';
+            document.getElementById('notas').value = contact.notas || '';
+            document.getElementById('activo').checked = contact.activo;
+            
+            if (contact.tipos_alerta_permitidos) {
+                document.getElementById('tiposAlerta').value = contact.tipos_alerta_permitidos.join(',');
+            }
+            
+            populateJobsCheckboxes(contact.jobs_permitidos);
+            populatePrioridades(contact.prioridades_permitidas);
+            
+            document.getElementById('contactModal').classList.add('active');
+        }
+
+        function populateJobsCheckboxes(selectedJobs = []) {
+            const container = document.getElementById('jobsCheckboxes');
+            container.innerHTML = allJobs.map(job => `
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" value="${job}" class="job-checkbox rounded" ${selectedJobs.includes(job) ? 'checked' : ''}>
+                    <span class="text-xs">${job}</span>
+                </label>
+            `).join('');
+        }
+
+        function populatePrioridades(selected = []) {
+            document.querySelectorAll('.prioridad-checkbox').forEach(cb => {
+                cb.checked = selected.includes(cb.value);
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('contactModal').classList.remove('active');
+        }
+
+        async function saveContact(event) {
+            event.preventDefault();
+            
+            const id = document.getElementById('contactId').value;
+            const selectedJobs = Array.from(document.querySelectorAll('.job-checkbox:checked')).map(cb => cb.value);
+            const selectedPrioridades = Array.from(document.querySelectorAll('.prioridad-checkbox:checked')).map(cb => cb.value);
+            const tiposAlertaText = document.getElementById('tiposAlerta').value.trim();
+            
+            const data = {
+                nombre_nora: document.getElementById('nombreNora').value,
+                chat_id: document.getElementById('chatId').value,
+                nombre_contacto: document.getElementById('nombreContacto').value || null,
+                jobs_permitidos: selectedJobs.length > 0 ? selectedJobs : null,
+                prioridades_permitidas: selectedPrioridades.length > 0 ? selectedPrioridades : null,
+                tipos_alerta_permitidos: tiposAlertaText ? tiposAlertaText.split(',').map(t => t.trim()) : null,
+                notas: document.getElementById('notas').value || null,
+                activo: document.getElementById('activo').checked
+            };
+            
+            try {
+                const url = id ? `${API_URL}/notifications/contacts/${id}` : `${API_URL}/notifications/contacts`;
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    closeModal();
+                    refreshContacts();
+                    alert(`✅ Contacto ${id ? 'actualizado' : 'creado'} exitosamente`);
+                } else {
+                    alert(`❌ Error: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function toggleContact(id, newState) {
+            try {
+                const response = await fetch(`${API_URL}/notifications/contacts/${id}/toggle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ activo: newState })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    refreshContacts();
+                } else {
+                    alert(`❌ Error: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function deleteContact(id) {
+            if (!confirm('¿Estás seguro de eliminar este contacto? Esta acción no se puede deshacer.')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/notifications/contacts/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    refreshContacts();
+                    alert('✅ Contacto eliminado exitosamente');
+                } else {
+                    alert(`❌ Error: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        function showError(message) {
+            const container = document.getElementById('contactsContainer');
+            container.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
+                    <div class="text-6xl mb-4">⚠️</div>
+                    <p class="text-red-600 text-lg font-semibold">${message}</p>
+                    <button onclick="refreshContacts()" class="mt-4 bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition">
+                        🔄 Reintentar
+                    </button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

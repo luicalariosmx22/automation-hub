@@ -12,14 +12,29 @@ logger = logging.getLogger(__name__)
 class TelegramNotifier:
     """Cliente para enviar notificaciones vía Telegram Bot."""
     
-    def __init__(self, bot_token: Optional[str] = None, default_chat_id: Optional[str] = None):
+    def __init__(self, bot_token: Optional[str] = None, default_chat_id: Optional[str] = None, bot_nombre: Optional[str] = None):
         """
         Inicializa el notificador de Telegram.
         
         Args:
             bot_token: Token del bot de Telegram (opcional, usa env var si no se provee)
             default_chat_id: Chat ID por defecto (opcional, usa env var si no se provee)
+            bot_nombre: Nombre del bot en la BD (ej: "Bot Meta Ads")
         """
+        # Si se especifica nombre de bot, buscar en BD
+        if bot_nombre and not bot_token:
+            try:
+                from automation_hub.db.supabase_client import create_client_from_env
+                supabase = create_client_from_env()
+                result = supabase.table("telegram_bots").select("token").eq("nombre", bot_nombre).eq("activo", True).single().execute()
+                if result.data:
+                    bot_token = result.data.get("token")
+                    logger.info(f"Bot '{bot_nombre}' cargado desde BD")
+                else:
+                    logger.warning(f"Bot '{bot_nombre}' no encontrado en BD, usando env var")
+            except Exception as e:
+                logger.warning(f"Error cargando bot desde BD: {e}, usando env var")
+        
         self.bot_token = bot_token or os.getenv("TELEGRAM_BOT_TOKEN")
         self.default_chat_id = default_chat_id or os.getenv("TELEGRAM_CHAT_ID")
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}"

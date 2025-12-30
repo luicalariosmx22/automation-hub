@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nora AI - Sistema de Notificaciones</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab-button.active {
+            border-bottom-color: #6366f1;
+            color: #6366f1;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        .badge-active { background-color: #10b981; color: white; }
+        .badge-inactive { background-color: #6b7280; color: white; }
+        .badge-alta { background-color: #ef4444; color: white; }
+        .badge-media { background-color: #f59e0b; color: white; }
+        .badge-baja { background-color: #3b82f6; color: white; }
+        .badge-enviado { background-color: #10b981; color: white; }
+        .badge-error { background-color: #ef4444; color: white; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-6 max-w-7xl">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 rounded-xl shadow-xl p-6 mb-6 text-white">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <img src="https://soynoraai.com/wp-content/uploads/2025/06/logo_nora.png" alt="Nora AI" class="h-16 w-auto">
+                    <div>
+                        <h1 class="text-4xl font-bold mb-2">Sistema de Notificaciones</h1>
+                        <p class="text-indigo-100">Gestión de Bots, Mensajes e Historial · Powered by Nora AI</p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <a href="/" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition font-semibold">
+                        🏠 Dashboard
+                    </a>
+                    <a href="notifications-manager.html" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition font-semibold">
+                        👥 Destinatarios
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="bg-white rounded-lg shadow-lg mb-6">
+            <div class="flex border-b overflow-x-auto">
+                <button onclick="switchTab('bots')" class="tab-button active" id="tab-bots">
+                    🤖 Bots de Telegram
+                </button>
+                <button onclick="switchTab('templates')" class="tab-button" id="tab-templates">
+                    📝 Templates de Mensajes
+                </button>
+                <button onclick="switchTab('historial')" class="tab-button" id="tab-historial">
+                    📊 Historial de Envíos
+                </button>
+                <button onclick="switchTab('destinatarios')" class="tab-button" id="tab-destinatarios">
+                    👥 Destinatarios
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB: Bots de Telegram -->
+        <div id="content-bots" class="tab-content active">
+            <div class="bg-white rounded-lg shadow-lg p-4 mb-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-gray-800">Bots de Telegram Configurados</h2>
+                    <button onclick="showAddBotModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition font-semibold">
+                        ➕ Agregar Bot
+                    </button>
+                </div>
+            </div>
+
+            <div id="botsContainer" class="space-y-4">
+                <div class="text-center py-12">
+                    <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                    <p class="text-gray-500">Cargando bots...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: Templates de Mensajes -->
+        <div id="content-templates" class="tab-content">
+            <div class="bg-white rounded-lg shadow-lg p-4 mb-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-gray-800">Templates de Mensajes</h2>
+                    <button onclick="showAddTemplateModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition font-semibold">
+                        ➕ Crear Template
+                    </button>
+                </div>
+            </div>
+
+            <div id="templatesContainer" class="space-y-4">
+                <div class="text-center py-12">
+                    <p class="text-gray-500">Cargando templates...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: Historial -->
+        <div id="content-historial" class="tab-content">
+            <div class="bg-white rounded-lg shadow-lg p-4 mb-6">
+                <div class="flex justify-between items-center flex-wrap gap-3">
+                    <h2 class="text-2xl font-bold text-gray-800">Historial de Notificaciones</h2>
+                    <div class="flex gap-2">
+                        <select id="filterBot" onchange="loadHistorial()" class="px-4 py-2 border border-gray-300 rounded-lg">
+                            <option value="">Todos los bots</option>
+                        </select>
+                        <select id="filterEstado" onchange="loadHistorial()" class="px-4 py-2 border border-gray-300 rounded-lg">
+                            <option value="">Todos los estados</option>
+                            <option value="enviado">Enviados</option>
+                            <option value="error">Errores</option>
+                        </select>
+                        <button onclick="loadHistorial()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-semibold">
+                            🔄 Actualizar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="historialContainer" class="space-y-4">
+                <div class="text-center py-12">
+                    <p class="text-gray-500">Cargando historial...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: Destinatarios -->
+        <div id="content-destinatarios" class="tab-content">
+            <div class="bg-white rounded-lg shadow-lg p-4 mb-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-gray-800">Destinatarios Configurados</h2>
+                    <button onclick="showAddDestinatarioModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition font-semibold">
+                        ➕ Agregar Destinatario
+                    </button>
+                </div>
+            </div>
+
+            <div id="destinatariosContainer" class="space-y-4">
+                <div class="text-center py-12">
+                    <p class="text-gray-500">Cargando destinatarios...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Agregar Bot -->
+    <div id="botModal" class="modal">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-2xl w-full mx-4">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Agregar Bot de Telegram</h2>
+                <button onclick="closeModals()" class="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+            </div>
+            
+            <form id="botForm" onsubmit="saveBot(event)" class="space-y-4">
+                <input type="hidden" id="botId">
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Nombre del Bot *</label>
+                    <input type="text" id="botNombre" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    <p class="text-xs text-gray-500 mt-1">Ej: "Bot Notificaciones Nora", "Bot Alertas Meta Ads"</p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Token del Bot *</label>
+                    <input type="text" id="botToken" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono">
+                    <p class="text-xs text-gray-500 mt-1">Obtén el token de @BotFather en Telegram</p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Descripción</label>
+                    <textarea id="botDescripcion" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+                
+                <div>
+                    <label class="flex items-center gap-2">
+                        <input type="checkbox" id="botActivo" checked class="rounded">
+                        <span class="text-sm font-semibold text-gray-700">Bot Activo</span>
+                    </label>
+                </div>
+                
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition font-semibold">
+                        💾 Guardar Bot
+                    </button>
+                    <button type="button" onclick="closeModals()" class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-semibold">
+                        Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Template -->
+    <div id="templateModal" class="modal">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Crear Template de Mensaje</h2>
+                <button onclick="closeModals()" class="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+            </div>
+            
+            <form id="templateForm" onsubmit="saveTemplate(event)" class="space-y-4">
+                <input type="hidden" id="templateId">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Nombre del Template *</label>
+                        <input type="text" id="templateNombre" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Tipo de Alerta *</label>
+                        <input type="text" id="templateTipo" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <p class="text-xs text-gray-500 mt-1">Ej: meta_ads_rechazado, review_negativa</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Mensaje *</label>
+                    <textarea id="templateMensaje" rows="8" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono text-sm"></textarea>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Variables disponibles: {nombre}, {descripcion}, {fecha}, {prioridad}, {job_name}, etc.
+                    </p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Prioridad</label>
+                    <select id="templatePrioridad" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <option value="alta">🔴 Alta</option>
+                        <option value="media" selected>🟡 Media</option>
+                        <option value="baja">🔵 Baja</option>
+                    </select>
+                </div>
+                
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition font-semibold">
+                        💾 Guardar Template
+                    </button>
+                    <button type="button" onclick="closeModals()" class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-semibold">
+                        Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        let currentTab = 'bots';
+
+        // Inicializar
+        window.addEventListener('DOMContentLoaded', () => {
+            loadBots();
+        });
+
+        function switchTab(tab) {
+            // Ocultar todos los contenidos
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Mostrar el contenido seleccionado
+            document.getElementById(`content-${tab}`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            
+            currentTab = tab;
+            
+            // Cargar datos según la pestaña
+            switch(tab) {
+                case 'bots':
+                    loadBots();
+                    break;
+                case 'templates':
+                    loadTemplates();
+                    break;
+                case 'historial':
+                    loadHistorial();
+                    break;
+                case 'destinatarios':
+                    loadDestinatarios();
+                    break;
+            }
+        }
+
+        async function loadBots() {
+            try {
+                const response = await fetch(`${API_URL}/telegram/bots`);
+                const result = await response.json();
+
+                if (result.success) {
+                    renderBots(result.data);
+                } else {
+                    showError('botsContainer', 'Error cargando bots: ' + result.error);
+                }
+            } catch (error) {
+                showError('botsContainer', '❌ Error conectando al servidor');
+            }
+        }
+
+        function renderBots(bots) {
+            const container = document.getElementById('botsContainer');
+            
+            if (!bots || bots.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-lg shadow p-12 text-center">
+                        <div class="text-6xl mb-4">🤖</div>
+                        <p class="text-gray-500 text-lg mb-4">No hay bots configurados</p>
+                        <button onclick="showAddBotModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition font-semibold">
+                            ➕ Agregar Primer Bot
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = bots.map(bot => `
+                <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 ${bot.activo ? 'border-green-500' : 'border-gray-400'}">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-3">
+                                <h3 class="text-xl font-bold text-gray-800">${bot.nombre}</h3>
+                                <span class="badge ${bot.activo ? 'badge-active' : 'badge-inactive'}">
+                                    ${bot.activo ? '✅ Activo' : '⏸️ Inactivo'}
+                                </span>
+                            </div>
+                            
+                            ${bot.descripcion ? `<p class="text-gray-600 mb-3">${bot.descripcion}</p>` : ''}
+                            
+                            <div class="text-sm text-gray-500">
+                                <p class="font-mono mb-2">🔑 Token: ${bot.token.substring(0, 15)}...${bot.token.substring(bot.token.length - 10)}</p>
+                                <p>📅 Creado: ${new Date(bot.created_at).toLocaleDateString('es-MX')}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button onclick="testBot(${bot.id})" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold">
+                                🧪 Probar
+                            </button>
+                            <button onclick="editBot(${bot.id})" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-semibold">
+                                ✏️ Editar
+                            </button>
+                            <button onclick="deleteBot(${bot.id})" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition text-sm font-semibold">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function loadTemplates() {
+            try {
+                const response = await fetch(`${API_URL}/telegram/templates`);
+                const result = await response.json();
+
+                if (result.success) {
+                    renderTemplates(result.data);
+                } else {
+                    showError('templatesContainer', 'Error cargando templates');
+                }
+            } catch (error) {
+                showError('templatesContainer', '❌ Error conectando al servidor');
+            }
+        }
+
+        function renderTemplates(templates) {
+            const container = document.getElementById('templatesContainer');
+            
+            if (!templates || templates.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-lg shadow p-12 text-center">
+                        <div class="text-6xl mb-4">📝</div>
+                        <p class="text-gray-500 text-lg mb-4">No hay templates configurados</p>
+                        <button onclick="showAddTemplateModal()" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition font-semibold">
+                            ➕ Crear Primer Template
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = templates.map(tpl => `
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800">${tpl.nombre}</h3>
+                            <p class="text-sm text-gray-500">Tipo: <span class="font-mono">${tpl.tipo_alerta}</span></p>
+                        </div>
+                        <span class="badge badge-${tpl.prioridad}">${tpl.prioridad.toUpperCase()}</span>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                        <pre class="text-sm whitespace-pre-wrap font-mono">${tpl.mensaje}</pre>
+                    </div>
+                    
+                    <div class="flex gap-2 justify-end">
+                        <button onclick="editTemplate(${tpl.id})" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold">
+                            ✏️ Editar
+                        </button>
+                        <button onclick="deleteTemplate(${tpl.id})" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition text-sm font-semibold">
+                            🗑️ Eliminar
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function loadHistorial() {
+            try {
+                const botFilter = document.getElementById('filterBot')?.value || '';
+                const estadoFilter = document.getElementById('filterEstado')?.value || '';
+                
+                let url = `${API_URL}/telegram/historial?`;
+                if (botFilter) url += `bot_id=${botFilter}&`;
+                if (estadoFilter) url += `estado=${estadoFilter}`;
+                
+                const response = await fetch(url);
+                const result = await response.json();
+
+                if (result.success) {
+                    renderHistorial(result.data);
+                } else {
+                    showError('historialContainer', 'Error cargando historial');
+                }
+            } catch (error) {
+                showError('historialContainer', '❌ Error conectando al servidor');
+            }
+        }
+
+        function renderHistorial(historial) {
+            const container = document.getElementById('historialContainer');
+            
+            if (!historial || historial.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-lg shadow p-12 text-center">
+                        <div class="text-6xl mb-4">📭</div>
+                        <p class="text-gray-500 text-lg">No hay notificaciones en el historial</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = historial.map(item => `
+                <div class="bg-white rounded-xl shadow p-6">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="badge badge-${item.estado}">${item.estado === 'enviado' ? '✅ Enviado' : '❌ Error'}</span>
+                                <span class="badge badge-${item.prioridad}">${item.prioridad}</span>
+                            </div>
+                            <p class="text-sm text-gray-500">
+                                📅 ${new Date(item.created_at).toLocaleString('es-MX')} | 
+                                💬 Chat: ${item.chat_id} | 
+                                🤖 Bot: ${item.bot_nombre}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-sm whitespace-pre-wrap">${item.mensaje}</p>
+                    </div>
+                    
+                    ${item.error ? `
+                        <div class="mt-3 bg-red-50 border border-red-200 p-3 rounded-lg">
+                            <p class="text-sm text-red-600">❌ Error: ${item.error}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        async function loadDestinatarios() {
+            try {
+                const response = await fetch(`${API_URL}/notifications/contacts`);
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('destinatariosContainer').innerHTML = `
+                        <div class="bg-blue-50 border border-blue-200 p-6 rounded-lg">
+                            <p class="text-blue-800">
+                                📌 Tienes ${result.data.length} destinatarios configurados.
+                                <a href="notifications-manager.html" class="underline font-semibold">Ver gestión completa de destinatarios →</a>
+                            </p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                showError('destinatariosContainer', '❌ Error cargando destinatarios');
+            }
+        }
+
+        // Modal functions
+        function showAddBotModal() {
+            document.getElementById('botForm').reset();
+            document.getElementById('botId').value = '';
+            document.getElementById('botModal').classList.add('active');
+        }
+
+        function showAddTemplateModal() {
+            document.getElementById('templateForm').reset();
+            document.getElementById('templateId').value = '';
+            document.getElementById('templateModal').classList.add('active');
+        }
+
+        function showAddDestinatarioModal() {
+            window.location.href = 'notifications-manager.html';
+        }
+
+        function closeModals() {
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.classList.remove('active');
+            });
+        }
+
+        async function saveBot(event) {
+            event.preventDefault();
+            
+            const id = document.getElementById('botId').value;
+            const data = {
+                nombre: document.getElementById('botNombre').value,
+                token: document.getElementById('botToken').value,
+                descripcion: document.getElementById('botDescripcion').value,
+                activo: document.getElementById('botActivo').checked
+            };
+            
+            try {
+                const url = id ? `${API_URL}/telegram/bots/${id}` : `${API_URL}/telegram/bots`;
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    closeModals();
+                    loadBots();
+                    alert(`✅ Bot ${id ? 'actualizado' : 'creado'} exitosamente`);
+                } else {
+                    alert(`❌ Error: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function saveTemplate(event) {
+            event.preventDefault();
+            
+            const id = document.getElementById('templateId').value;
+            const data = {
+                nombre: document.getElementById('templateNombre').value,
+                tipo_alerta: document.getElementById('templateTipo').value,
+                mensaje: document.getElementById('templateMensaje').value,
+                prioridad: document.getElementById('templatePrioridad').value
+            };
+            
+            try {
+                const url = id ? `${API_URL}/telegram/templates/${id}` : `${API_URL}/telegram/templates`;
+                const method = id ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    closeModals();
+                    loadTemplates();
+                    alert(`✅ Template ${id ? 'actualizado' : 'creado'} exitosamente`);
+                } else {
+                    alert(`❌ Error: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function editBot(id) {
+            try {
+                const response = await fetch(`${API_URL}/telegram/bots/${id}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const bot = result.data;
+                    document.getElementById('botId').value = bot.id;
+                    document.getElementById('botNombre').value = bot.nombre;
+                    document.getElementById('botToken').value = bot.token;
+                    document.getElementById('botDescripcion').value = bot.descripcion || '';
+                    document.getElementById('botActivo').checked = bot.activo;
+                    document.getElementById('botModal').classList.add('active');
+                } else {
+                    alert(`❌ Error: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function editTemplate(id) {
+            try {
+                const response = await fetch(`${API_URL}/telegram/templates/${id}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const template = result.data;
+                    document.getElementById('templateId').value = template.id;
+                    document.getElementById('templateNombre').value = template.nombre;
+                    document.getElementById('templateTipo').value = template.tipo_alerta;
+                    document.getElementById('templateMensaje').value = template.mensaje;
+                    document.getElementById('templatePrioridad').value = template.prioridad;
+                    document.getElementById('templateModal').classList.add('active');
+                } else {
+                    alert(`❌ Error: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function testBot(id) {
+            const chatId = prompt('Ingresa el Chat ID para enviar mensaje de prueba:');
+            if (!chatId) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/telegram/bots/${id}/test`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: chatId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('✅ Mensaje de prueba enviado exitosamente');
+                } else {
+                    alert(`❌ Error: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function deleteBot(id) {
+            if (!confirm('¿Eliminar este bot?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/telegram/bots/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    loadBots();
+                    alert('✅ Bot eliminado');
+                } else {
+                    alert(`❌ Error: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function deleteTemplate(id) {
+            if (!confirm('¿Eliminar este template?')) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/telegram/templates/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    loadTemplates();
+                    alert('✅ Template eliminado');
+                } else {
+                    alert(`❌ Error: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        function showError(containerId, message) {
+            document.getElementById(containerId).innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
+                    <p class="text-red-600 text-lg font-semibold">${message}</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

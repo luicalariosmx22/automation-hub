@@ -10,7 +10,7 @@ from automation_hub.db.supabase_client import create_client_from_env
 from automation_hub.db.repositories.gbp_locations_repo import fetch_active_locations
 from automation_hub.db.repositories.gbp_metrics_repo import upsert_metrics_daily
 from automation_hub.db.repositories.alertas_repo import crear_alerta
-from automation_hub.integrations.telegram.notifier import notificar_alerta_telegram
+from automation_hub.integrations.telegram.notifier import notificar_alerta_telegram, TelegramNotifier
 
 logger = logging.getLogger(__name__)
 
@@ -62,13 +62,12 @@ def run(ctx=None):
     total_metrics = 0
     
     for location in locations:
-        location_id = location.get("location_id")
-        location_name = location.get("location_name")
+        location_name = location.get("location_name")  # Ya es locations/{id}
         nombre_nora_loc = location.get("nombre_nora") or "Sistema"
         api_id = location.get("api_id")  # Puede ser None si no existe
         
-        if not location_id:
-            logger.warning(f"Locación sin location_id: {location_name or 'desconocida'}")
+        if not location_name:
+            logger.warning(f"Locación sin location_name: {location}")
             continue
         
         try:
@@ -76,7 +75,7 @@ def run(ctx=None):
             
             # Descargar métricas
             time_series = fetch_multi_daily_metrics(
-                location_id, auth_header, metrics, start_date, end_date
+                location_name, auth_header, metrics, start_date, end_date
             )
             
             if not time_series:
@@ -124,8 +123,12 @@ def run(ctx=None):
             prioridad="baja"
         )
         
-        # Notificar por Telegram
-        notificar_alerta_telegram(
+        # Notificar por Telegram usando bot de notificaciones
+        bot_token = "8488045829:AAF5hEBfqe1BgUg3ninX24M15FeeDcS3NkE"
+        chat_id = "5674082622"
+        notifier = TelegramNotifier(bot_token=bot_token, default_chat_id=chat_id)
+        
+        notifier.enviar_alerta(
             nombre="📊 Métricas GBP Sincronizadas",
             descripcion=f"Job completado exitosamente",
             prioridad="baja",
@@ -133,10 +136,7 @@ def run(ctx=None):
                 "Total Métricas": total_metrics,
                 "Locaciones": len(locations),
                 "Período": f"{days_back} días"
-            },
-            nombre_nora="Sistema",
-            job_name=JOB_NAME,
-            tipo_alerta="job_completado"
+            }
         )
     except Exception as e:
         logger.warning(f"No se pudo crear alerta: {e}")

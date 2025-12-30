@@ -24,7 +24,7 @@ def fetch_active_locations(
     """
     try:
         query = supabase.table("gbp_locations").select(
-            "nombre_nora, api_id, location_name, location_id"
+            "nombre_nora, api_id, account_name, location_name, location_id, title"
         ).eq("activa", True)
         
         if nombre_nora:

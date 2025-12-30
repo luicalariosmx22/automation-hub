@@ -7,7 +7,7 @@ from automation_hub.integrations.google.oauth import get_bearer_header
 from automation_hub.integrations.gbp.posts_v1 import create_local_post
 from automation_hub.db.supabase_client import create_client_from_env
 from automation_hub.db.repositories.alertas_repo import crear_alerta
-from automation_hub.integrations.telegram.notifier import notificar_alerta_telegram
+from automation_hub.integrations.telegram.notifier import TelegramNotifier
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ def run(ctx=None):
                 file_path = f"posts/{page_id}/{post_id}_{timestamp}.{ext}"
                 
                 # Subir a Supabase Storage
-                result = supabase.storage.from_('gbp-publicaciones').upload(
+                result = supabase.storage.from_('meta-webhooks').upload(
                     file_path,
                     response.content,
                     {
@@ -108,7 +108,7 @@ def run(ctx=None):
                 )
                 
                 # Obtener URL pública
-                public_url = supabase.storage.from_('gbp-publicaciones').get_public_url(file_path)
+                public_url = supabase.storage.from_('meta-webhooks').get_public_url(file_path)
                 logger.info(f"Imagen subida a Storage: {file_path}")
                 return public_url
                 
@@ -260,7 +260,13 @@ def run(ctx=None):
             datos={"job_name": JOB_NAME}
         )
         
-        notificar_alerta_telegram(supabase, "job_completado", mensaje_resumen)
+        # Enviar notificación usando el bot principal
+        telegram = TelegramNotifier(bot_nombre="Bot Principal")
+        telegram.enviar_alerta(
+            nombre="Posts Facebook → GBP",
+            descripcion=mensaje_resumen,
+            prioridad="baja"
+        )
     except Exception as e:
         logger.error(f"Error enviando notificación: {e}", exc_info=True)
 

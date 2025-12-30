@@ -41,6 +41,9 @@ env/
 .env
 *.download
 
+# Token renewal history (contains sensitive data)
+.token_renewals.json
+
 # Logs
 *.log
 logs/

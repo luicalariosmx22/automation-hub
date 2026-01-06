@@ -2,6 +2,68 @@
 
 Sistema de gestión de múltiples cron jobs en Python.
 
+## 🧪 TESTING - Cómo probar cualquier componente
+
+### 1. Activar entorno (SIEMPRE primero)
+```powershell
+# Windows PowerShell - si falla, usar cmd
+.\.venv\Scripts\Activate.ps1
+
+# Si hay problemas de permisos:
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+.\.venv\Scripts\Activate.ps1
+
+# O usar directamente cmd:
+cmd /c .venv\Scripts\activate.bat && python tu_script.py
+```
+
+### 2. Variables de entorno necesarias
+Asegúrate que el archivo `.env` tenga:
+```
+SUPABASE_URL=tu_url
+SUPABASE_KEY=tu_key
+GOOGLE_CLIENT_ID=tu_client_id
+GOOGLE_CLIENT_SECRET=tu_secret
+GOOGLE_REFRESH_TOKEN=tu_token
+NOMBRE_NORA=tu_nombre_nora
+```
+
+### 3. Ejecutar cualquier script de test
+```powershell
+# Activar entorno Y ejecutar script en una línea
+cmd /c ".venv\Scripts\activate.bat && python test_post_especifico.py"
+
+# O si el entorno ya está activo:
+python test_post_especifico.py
+```
+
+### 4. Template para nuevos tests
+```python
+#!/usr/bin/env python3
+import os
+import sys
+from dotenv import load_dotenv
+
+# IMPORTANTE: Cargar .env SIEMPRE
+load_dotenv()
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
+from automation_hub.db.supabase_client import create_client_from_env
+
+def test_algo():
+    supabase = create_client_from_env()
+    # Tu código aquí
+    
+if __name__ == "__main__":
+    test_algo()
+```
+
+### 5. Comando rápido para cualquier test
+```powershell
+cmd /c ".venv\Scripts\activate.bat && python tu_script.py"
+```
+
 ## Estructura del Proyecto
 
 ```

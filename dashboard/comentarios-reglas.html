@@ -1,0 +1,933 @@
+ <!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Reglas de Comentarios - Automation Hub</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .toolbar {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.875rem;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            max-width: 300px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 40px 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .search-box::after {
+            content: '🔍';
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .content-area {
+            padding: 20px;
+        }
+
+        .reglas-grid {
+            display: grid;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .regla-card {
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            background: #fff;
+            transition: all 0.3s ease;
+        }
+
+        .regla-card:hover {
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .regla-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .regla-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .regla-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-activa {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-inactiva {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .regla-body {
+            padding: 20px;
+        }
+
+        .regla-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .info-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+        }
+
+        .info-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .palabras-clave {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 5px;
+        }
+
+        .keyword-tag {
+            background: #e7f3ff;
+            color: #0066cc;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .regla-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            padding: 15px 20px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+        }
+
+        .alert-success {
+            color: #155724;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+
+        .priority-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .priority-1, .priority-2 {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .priority-3, .priority-4, .priority-5 {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .priority-6, .priority-7, .priority-8, .priority-9, .priority-10 {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Gestión de Reglas de Comentarios</h1>
+            <p>Sistema de automatización tipo ManyChat para Facebook e Instagram</p>
+        </div>
+
+        <div class="main-content">
+            <div class="toolbar">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Buscar reglas...">
+                </div>
+                <div>
+                    <button class="btn btn-success" onclick="openModal('crear')">
+                        ➕ Nueva Regla
+                    </button>
+                    <button class="btn btn-primary" onclick="cargarReglas()">
+                        🔄 Actualizar
+                    </button>
+                </div>
+            </div>
+
+            <div class="content-area">
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Cargando reglas...</p>
+                </div>
+
+                <div id="alertContainer"></div>
+
+                <div class="reglas-grid" id="reglasContainer">
+                    <!-- Las reglas se cargarán aquí dinámicamente -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para crear/editar reglas -->
+    <div id="reglaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Nueva Regla</h3>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="reglaForm">
+                    <input type="hidden" id="reglaId">
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="nombreRegla">Nombre de la Regla *</label>
+                        <input type="text" class="form-control" id="nombreRegla" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="descripcion">Descripción</label>
+                        <textarea class="form-control" id="descripcion" rows="3"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="paginaFacebook">Página de Facebook *</label>
+                        <select class="form-control" id="paginaFacebook" required onchange="actualizarCamposPagina()">
+                            <option value="">Seleccionar página...</option>
+                        </select>
+                        <small class="form-text text-muted">Selecciona la página de Facebook donde aplica esta regla</small>
+                    </div>
+
+                    <input type="hidden" id="nombreNora">
+                    <input type="hidden" id="pageId">
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="postId">ID de Post (opcional)</label>
+                            <input type="text" class="form-control" id="postId" placeholder="Dejar vacío = todos los posts">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="prioridad">Prioridad</label>
+                            <select class="form-control" id="prioridad">
+                                <option value="1">1 - Muy Alta</option>
+                                <option value="2">2 - Alta</option>
+                                <option value="3" selected>3 - Media</option>
+                                <option value="4">4 - Baja</option>
+                                <option value="5">5 - Muy Baja</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="palabrasClave">Palabras Clave *</label>
+                        <textarea class="form-control" id="palabrasClave" rows="3" 
+                                placeholder="Una palabra o frase por línea. Ejemplo:&#10;precio&#10;información&#10;cuánto cuesta"></textarea>
+                        <small class="form-text text-muted">Escriba cada palabra o frase en una línea separada</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="accion">Acción *</label>
+                        <select class="form-control" id="accion" required onchange="toggleParametros()">
+                            <option value="">Seleccionar acción...</option>
+                            <option value="responder_automatico">Respuesta Automática</option>
+                            <option value="notificar_admin">Notificar Administrador</option>
+                            <option value="alerta_urgente">Alerta Urgente</option>
+                            <option value="lead_calificado">Lead Calificado</option>
+                            <option value="enviar_mensaje_privado">Mensaje Privado</option>
+                        </select>
+                    </div>
+
+                    <!-- Parámetros específicos de cada acción -->
+                    <div id="parametrosContainer" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label" for="mensaje">Mensaje de Respuesta</label>
+                            <textarea class="form-control" id="mensaje" rows="3" 
+                                    placeholder="¡Hola! 👋 Gracias por tu comentario..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="activa" checked>
+                            <label for="activa">Regla activa</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-success">💾 Guardar Regla</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let reglas = [];
+        let paginasFacebook = [];
+        const API_BASE = '/api';
+
+        // Cargar reglas al iniciar
+        document.addEventListener('DOMContentLoaded', function() {
+            cargarReglas();
+            cargarPaginasFacebook();
+        });
+
+        async function cargarPaginasFacebook() {
+            try {
+                const response = await fetch(`${API_BASE}/facebook-paginas`);
+                const result = await response.json();
+
+                if (result.success) {
+                    paginasFacebook = result.data;
+                }
+            } catch (error) {
+                console.error('Error cargando páginas de Facebook:', error);
+            }
+        }
+
+        async function cargarReglas() {
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`${API_BASE}/comentarios-reglas`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Error cargando reglas');
+                }
+
+                reglas = result.data;
+                renderReglas(reglas);
+            } catch (error) {
+                showAlert('Error cargando reglas: ' + error.message, 'danger');
+            }
+            
+            showLoading(false);
+        }
+
+        function renderReglas(reglasToRender) {
+            const container = document.getElementById('reglasContainer');
+            
+            if (reglasToRender.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6c757d;">
+                        <h4>No hay reglas configuradas</h4>
+                        <p>Crea tu primera regla de automatización</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = reglasToRender.map(regla => `
+                <div class="regla-card">
+                    <div class="regla-header">
+                        <div class="regla-title">${regla.nombre_regla}</div>
+                        <div>
+                            <span class="priority-badge priority-${regla.prioridad}">
+                                Prioridad ${regla.prioridad}
+                            </span>
+                            <span class="regla-status ${regla.activa ? 'status-activa' : 'status-inactiva'}">
+                                ${regla.activa ? 'ACTIVA' : 'INACTIVA'}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="regla-body">
+                        <div class="regla-info">
+                            <div class="info-item">
+                                <div class="info-label">Cliente</div>
+                                <div class="info-value">${regla.nombre_empresa || regla.nombre_nora}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Acción</div>
+                                <div class="info-value">${formatAccion(regla.accion)}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Filtros</div>
+                                <div class="info-value">
+                                    ${regla.page_id ? `Página: ${regla.page_id}` : 'Todas las páginas'}
+                                    ${regla.post_id ? ` | Post: ${regla.post_id}` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        ${regla.descripcion ? `<p style="margin-bottom: 15px; color: #6c757d;">${regla.descripcion}</p>` : ''}
+                        
+                        <div>
+                            <div class="info-label">Palabras Clave</div>
+                            <div class="palabras-clave">
+                                ${regla.palabras_clave.map(palabra => `
+                                    <span class="keyword-tag">${palabra}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="regla-actions">
+                        <button class="btn btn-primary btn-sm" onclick="editarRegla(${regla.id})">
+                            ✏️ Editar
+                        </button>
+                        <button class="btn btn-${regla.activa ? 'warning' : 'success'} btn-sm" 
+                                onclick="toggleRegla(${regla.id}, ${!regla.activa})">
+                            ${regla.activa ? '⏸️ Desactivar' : '▶️ Activar'}
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="eliminarRegla(${regla.id})">
+                            🗑️ Eliminar
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function formatAccion(accion) {
+            const acciones = {
+                'responder_automatico': 'Respuesta Automática',
+                'notificar_admin': 'Notificar Admin',
+                'alerta_urgente': 'Alerta Urgente',
+                'lead_calificado': 'Lead Calificado',
+                'enviar_mensaje_privado': 'Mensaje Privado'
+            };
+            return acciones[accion] || accion;
+        }
+
+        function openModal(tipo, reglaId = null) {
+            const modal = document.getElementById('reglaModal');
+            const title = document.getElementById('modalTitle');
+            const form = document.getElementById('reglaForm');
+            
+            form.reset();
+            document.getElementById('activa').checked = true;
+            
+            // Llenar selector de páginas de Facebook
+            const selectPagina = document.getElementById('paginaFacebook');
+            selectPagina.innerHTML = '<option value="">Seleccionar página...</option>';
+            
+            paginasFacebook.forEach(pagina => {
+                const option = document.createElement('option');
+                option.value = pagina.page_id;
+                const empresaNombre = pagina.cliente_empresas ? pagina.cliente_empresas.nombre_empresa : 'Sin empresa';
+                option.textContent = `${pagina.nombre_pagina} (${empresaNombre})`;
+                option.setAttribute('data-nombre-nora', pagina.nombre_nora || '');
+                selectPagina.appendChild(option);
+            });
+            
+            if (tipo === 'crear') {
+                title.textContent = 'Nueva Regla';
+                document.getElementById('reglaId').value = '';
+            } else if (tipo === 'editar' && reglaId) {
+                title.textContent = 'Editar Regla';
+                cargarDatosRegla(reglaId);
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        function actualizarCamposPagina() {
+            const selectPagina = document.getElementById('paginaFacebook');
+            const selectedOption = selectPagina.options[selectPagina.selectedIndex];
+            
+            if (selectedOption && selectedOption.value) {
+                document.getElementById('pageId').value = selectedOption.value;
+                document.getElementById('nombreNora').value = selectedOption.getAttribute('data-nombre-nora') || '';
+            } else {
+                document.getElementById('pageId').value = '';
+                document.getElementById('nombreNora').value = '';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('reglaModal').style.display = 'none';
+        }
+
+        function cargarDatosRegla(reglaId) {
+            const regla = reglas.find(r => r.id === reglaId);
+            if (!regla) return;
+            
+            document.getElementById('reglaId').value = regla.id;
+            document.getElementById('nombreRegla').value = regla.nombre_regla;
+            document.getElementById('descripcion').value = regla.descripcion || '';
+            
+            // Seleccionar página de Facebook
+            if (regla.page_id) {
+                document.getElementById('paginaFacebook').value = regla.page_id;
+                actualizarCamposPagina();
+            }
+            
+            document.getElementById('postId').value = regla.post_id || '';
+            document.getElementById('palabrasClave').value = regla.palabras_clave.join('\n');
+            document.getElementById('accion').value = regla.accion;
+            document.getElementById('prioridad').value = regla.prioridad;
+            document.getElementById('activa').checked = regla.activa;
+            
+            // Cargar parámetros
+            if (regla.parametros && regla.parametros.mensaje) {
+                document.getElementById('mensaje').value = regla.parametros.mensaje;
+            }
+            
+            toggleParametros();
+        }
+
+        function toggleParametros() {
+            const accion = document.getElementById('accion').value;
+            const container = document.getElementById('parametrosContainer');
+            
+            if (accion === 'responder_automatico' || accion === 'enviar_mensaje_privado') {
+                container.style.display = 'block';
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
+        // Manejar envío del formulario
+        document.getElementById('reglaForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await guardarRegla();
+        });
+
+        async function guardarRegla() {
+            const reglaId = document.getElementById('reglaId').value;
+            const isEdit = Boolean(reglaId);
+            
+            // Verificar que se haya seleccionado una página
+            const paginaSeleccionada = document.getElementById('paginaFacebook').value;
+            if (!paginaSeleccionada) {
+                showAlert('Debe seleccionar una página de Facebook', 'danger');
+                return;
+            }
+            
+            // Recoger datos del formulario
+            const palabrasText = document.getElementById('palabrasClave').value.trim();
+            const palabrasClave = palabrasText.split('\n')
+                .map(p => p.trim())
+                .filter(p => p.length > 0);
+            
+            if (palabrasClave.length === 0) {
+                showAlert('Debe especificar al menos una palabra clave', 'danger');
+                return;
+            }
+            
+            const reglaData = {
+                nombre_regla: document.getElementById('nombreRegla').value.trim(),
+                descripcion: document.getElementById('descripcion').value.trim() || null,
+                nombre_nora: document.getElementById('nombreNora').value.trim(),
+                page_id: document.getElementById('pageId').value.trim(),
+                post_id: document.getElementById('postId').value.trim() || null,
+                palabras_clave: palabrasClave,
+                accion: document.getElementById('accion').value,
+                prioridad: parseInt(document.getElementById('prioridad').value),
+                activa: document.getElementById('activa').checked
+            };
+            
+            // Construir parámetros según la acción
+            const parametros = {};
+            const accion = reglaData.accion;
+            
+            if (accion === 'responder_automatico' || accion === 'enviar_mensaje_privado') {
+                const mensaje = document.getElementById('mensaje').value.trim();
+                if (mensaje) {
+                    parametros.mensaje = mensaje;
+                }
+            }
+            
+            if (accion === 'alerta_urgente') {
+                parametros.prioridad = 'alta';
+                parametros.notificar_inmediato = true;
+            }
+            
+            if (accion === 'lead_calificado') {
+                parametros.prioridad = 'alta';
+                parametros.asignar_vendedor = true;
+            }
+            
+            reglaData.parametros = parametros;
+            
+            try {
+                let response;
+                
+                if (isEdit) {
+                    // Actualizar regla existente
+                    response = await fetch(`${API_BASE}/comentarios-reglas/${reglaId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(reglaData)
+                    });
+                } else {
+                    // Crear nueva regla
+                    response = await fetch(`${API_BASE}/comentarios-reglas`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(reglaData)
+                    });
+                }
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Error guardando la regla');
+                }
+                
+                closeModal();
+                showAlert(result.message || (isEdit ? 'Regla actualizada exitosamente' : 'Regla creada exitosamente'), 'success');
+                cargarReglas();
+                
+            } catch (error) {
+                showAlert('Error guardando la regla: ' + error.message, 'danger');
+            }
+        }
+
+        async function toggleRegla(reglaId, nuevoEstado) {
+            try {
+                const response = await fetch(`${API_BASE}/comentarios-reglas/${reglaId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ activa: nuevoEstado })
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Error actualizando regla');
+                }
+                
+                showAlert(`Regla ${nuevoEstado ? 'activada' : 'desactivada'} exitosamente`, 'success');
+                cargarReglas();
+                
+            } catch (error) {
+                showAlert('Error actualizando regla: ' + error.message, 'danger');
+            }
+        }
+
+        async function eliminarRegla(reglaId) {
+            if (!confirm('¿Estás seguro de que quieres eliminar esta regla?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/comentarios-reglas/${reglaId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Error eliminando regla');
+                }
+                
+                showAlert('Regla eliminada exitosamente', 'success');
+                cargarReglas();
+                
+            } catch (error) {
+                showAlert('Error eliminando regla: ' + error.message, 'danger');
+            }
+        }
+
+        function editarRegla(reglaId) {
+            openModal('editar', reglaId);
+        }
+
+        // Búsqueda
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            if (!searchTerm) {
+                renderReglas(reglas);
+                return;
+            }
+            
+            const filtered = reglas.filter(regla => 
+                regla.nombre_regla.toLowerCase().includes(searchTerm) ||
+                regla.nombre_nora.toLowerCase().includes(searchTerm) ||
+                (regla.nombre_empresa && regla.nombre_empresa.toLowerCase().includes(searchTerm)) ||
+                regla.descripcion?.toLowerCase().includes(searchTerm) ||
+                regla.palabras_clave.some(palabra => palabra.toLowerCase().includes(searchTerm))
+            );
+            
+            renderReglas(filtered);
+        });
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            document.getElementById('reglasContainer').style.display = show ? 'none' : 'block';
+        }
+
+        function showAlert(message, type) {
+            const container = document.getElementById('alertContainer');
+            const alertHtml = `
+                <div class="alert alert-${type}">
+                    ${message}
+                </div>
+            `;
+            container.innerHTML = alertHtml;
+            
+            // Auto-ocultar después de 5 segundos
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        // Cerrar modal al hacer clic fuera de él
+        window.addEventListener('click', function(e) {
+            const modal = document.getElementById('reglaModal');
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -64,6 +64,12 @@ def telegram_system():
     return send_file('telegram-system.html')
 
 
+@app.route('/comentarios-reglas.html')
+def comentarios_reglas():
+    """Sirve el gestor de reglas de comentarios."""
+    return send_file('comentarios-reglas.html')
+
+
 @app.route('/api/jobs', methods=['GET'])
 def get_jobs():
     """Obtiene todos los jobs configurados."""
@@ -708,6 +714,165 @@ def get_telegram_historial():
         return jsonify({"success": True, "data": historial})
     except Exception as e:
         logger.error(f"Error obteniendo historial: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# APIs para reglas de comentarios
+@app.route('/api/comentarios-reglas', methods=['GET'])
+def get_comentarios_reglas():
+    """Obtiene todas las reglas de comentarios."""
+    if supabase is None:
+        return jsonify({"success": False, "error": "Supabase no conectado"}), 500
+    
+    try:
+        assert supabase is not None
+        # Obtener reglas
+        reglas_result = (supabase.table("meta_comentarios_reglas")
+                        .select("*")
+                        .order("prioridad")
+                        .execute())
+        
+        reglas = reglas_result.data
+        
+        # Para cada regla, obtener info de la empresa si tiene page_id
+        for regla in reglas:
+            if regla.get('page_id'):
+                pagina_result = (supabase.table("facebook_paginas")
+                               .select("nombre_pagina, cliente_empresas(nombre_empresa)")
+                               .eq("page_id", regla['page_id'])
+                               .limit(1)
+                               .execute())
+                
+                if pagina_result.data and len(pagina_result.data) > 0:
+                    pagina = pagina_result.data[0]
+                    regla['nombre_pagina'] = pagina.get('nombre_pagina')
+                    if pagina.get('cliente_empresas'):
+                        regla['nombre_empresa'] = pagina['cliente_empresas']['nombre_empresa']
+        
+        return jsonify({"success": True, "data": reglas})
+    except Exception as e:
+        logger.error(f"Error obteniendo reglas: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/comentarios-reglas', methods=['POST'])
+def create_comentarios_regla():
+    """Crea una nueva regla de comentarios."""
+    if supabase is None:
+        return jsonify({"success": False, "error": "Supabase no conectado"}), 500
+    
+    try:
+        assert supabase is not None
+        data = request.json
+        
+        # Validaciones básicas
+        if not data.get('nombre_regla') or not data.get('nombre_nora') or not data.get('accion'):
+            return jsonify({"success": False, "error": "Campos requeridos: nombre_regla, nombre_nora, accion"}), 400
+        
+        if not data.get('palabras_clave') or len(data['palabras_clave']) == 0:
+            return jsonify({"success": False, "error": "Se requiere al menos una palabra clave"}), 400
+        
+        # Preparar datos para inserción
+        regla_data = {
+            'nombre_regla': data['nombre_regla'],
+            'descripcion': data.get('descripcion'),
+            'nombre_nora': data['nombre_nora'],
+            'page_id': data.get('page_id') if data.get('page_id') else None,
+            'post_id': data.get('post_id') if data.get('post_id') else None,
+            'palabras_clave': data['palabras_clave'],
+            'accion': data['accion'],
+            'parametros': data.get('parametros', {}),
+            'prioridad': data.get('prioridad', 3),
+            'activa': data.get('activa', True)
+        }
+        
+        result = supabase.table("meta_comentarios_reglas").insert(regla_data).execute()
+        
+        if result.data:
+            return jsonify({"success": True, "data": result.data[0], "message": "Regla creada exitosamente"})
+        return jsonify({"success": False, "error": "Error creando regla"}), 500
+    except Exception as e:
+        logger.error(f"Error creando regla: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/comentarios-reglas/<int:regla_id>', methods=['PUT'])
+def update_comentarios_regla(regla_id):
+    """Actualiza una regla existente."""
+    if supabase is None:
+        return jsonify({"success": False, "error": "Supabase no conectado"}), 500
+    
+    try:
+        assert supabase is not None
+        data = request.json
+        
+        # Preparar datos para actualización
+        update_data = {}
+        if 'nombre_regla' in data:
+            update_data['nombre_regla'] = data['nombre_regla']
+        if 'descripcion' in data:
+            update_data['descripcion'] = data['descripcion']
+        if 'nombre_nora' in data:
+            update_data['nombre_nora'] = data['nombre_nora']
+        if 'page_id' in data:
+            update_data['page_id'] = data['page_id'] if data['page_id'] else None
+        if 'post_id' in data:
+            update_data['post_id'] = data['post_id'] if data['post_id'] else None
+        if 'palabras_clave' in data:
+            update_data['palabras_clave'] = data['palabras_clave']
+        if 'accion' in data:
+            update_data['accion'] = data['accion']
+        if 'parametros' in data:
+            update_data['parametros'] = data['parametros']
+        if 'prioridad' in data:
+            update_data['prioridad'] = data['prioridad']
+        if 'activa' in data:
+            update_data['activa'] = data['activa']
+        
+        result = supabase.table("meta_comentarios_reglas").update(update_data).eq("id", regla_id).execute()
+        
+        if result.data:
+            return jsonify({"success": True, "data": result.data[0], "message": "Regla actualizada exitosamente"})
+        return jsonify({"success": False, "error": "Regla no encontrada"}), 404
+    except Exception as e:
+        logger.error(f"Error actualizando regla {regla_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/comentarios-reglas/<int:regla_id>', methods=['DELETE'])
+def delete_comentarios_regla(regla_id):
+    """Elimina una regla."""
+    if supabase is None:
+        return jsonify({"success": False, "error": "Supabase no conectado"}), 500
+    
+    try:
+        assert supabase is not None
+        result = supabase.table("meta_comentarios_reglas").delete().eq("id", regla_id).execute()
+        
+        if result.data:
+            return jsonify({"success": True, "message": "Regla eliminada exitosamente"})
+        return jsonify({"success": False, "error": "Regla no encontrada"}), 404
+    except Exception as e:
+        logger.error(f"Error eliminando regla {regla_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/facebook-paginas', methods=['GET'])
+def get_facebook_paginas():
+    """Obtiene todas las páginas de Facebook activas."""
+    if supabase is None:
+        return jsonify({"success": False, "error": "Supabase no conectado"}), 500
+    
+    try:
+        assert supabase is not None
+        result = (supabase.table("facebook_paginas")
+                 .select("page_id, nombre_pagina, nombre_nora, cliente_empresas(nombre_empresa)")
+                 .eq("activa", True)
+                 .order("nombre_pagina")
+                 .execute())
+        return jsonify({"success": True, "data": result.data})
+    except Exception as e:
+        logger.error(f"Error obteniendo páginas de Facebook: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 

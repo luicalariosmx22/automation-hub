@@ -91,6 +91,55 @@ class TelegramNotifier:
             logger.error(f"Error enviando mensaje a Telegram: {e}")
             return False
     
+    def enviar_imagen(
+        self,
+        imagen_url: str,
+        caption: str = "",
+        chat_id: Optional[str] = None,
+        parse_mode: str = "HTML"
+    ) -> bool:
+        """
+        Envía una imagen a un chat de Telegram.
+        
+        Args:
+            imagen_url: URL de la imagen a enviar
+            caption: Texto que acompaña la imagen
+            chat_id: ID del chat (usa default si no se provee)
+            parse_mode: Formato del texto (HTML, Markdown o None)
+            
+        Returns:
+            True si se envió exitosamente, False en caso contrario
+        """
+        target_chat_id = chat_id or self.default_chat_id
+        
+        if not self.bot_token or not target_chat_id:
+            logger.error("Token del bot o chat_id no configurados")
+            return False
+        
+        try:
+            url = f"{self.api_url}/sendPhoto"
+            payload = {
+                "chat_id": target_chat_id,
+                "photo": imagen_url,
+                "caption": caption,
+                "parse_mode": parse_mode
+            }
+            
+            response = requests.post(url, json=payload, timeout=30)
+            response.raise_for_status()
+            
+            result = response.json()
+            if result.get("ok"):
+                logger.info(f"Imagen enviada a Telegram chat {target_chat_id}")
+                return True
+            else:
+                logger.error(f"Error en respuesta de Telegram: {result}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error enviando imagen a Telegram: {e}")
+            return False
+    
     def enviar_alerta(
         self,
         nombre: str,

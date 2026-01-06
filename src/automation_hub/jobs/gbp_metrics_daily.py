@@ -1,9 +1,11 @@
 """
 Job para sincronizar métricas diarias de Google Business Profile.
+También sincroniza ubicaciones (nuevas, actualizadas o eliminadas).
 """
 import logging
 import os
-from datetime import date, timedelta
+import requests
+from datetime import date, timedelta, datetime
 from automation_hub.integrations.google.oauth import get_bearer_header
 from automation_hub.integrations.gbp.performance_v1 import fetch_multi_daily_metrics, parse_metrics_to_rows
 from automation_hub.db.supabase_client import create_client_from_env
@@ -17,14 +19,151 @@ logger = logging.getLogger(__name__)
 JOB_NAME = "gbp.metrics.daily"
 
 
+def sincronizar_ubicaciones_gbp(auth_header: dict, supabase, nombre_nora: str) -> dict:
+    """
+    Sincroniza ubicaciones de GBP desde la API a la base de datos.
+    Envía notificación por Telegram cuando detecta nuevas ubicaciones.
+    
+    Returns:
+        Dict con estadísticas: nuevas, actualizadas, total
+    """
+    logger.info("🔄 Sincronizando ubicaciones de GBP...")
+    
+    stats = {
+        'nuevas': 0,
+        'actualizadas': 0,
+        'total': 0,
+        'errores': 0
+    }
+    
+    # Preparar notifier de Telegram
+    telegram = TelegramNotifier(bot_nombre="Bot de Notificaciones")
+    
+    try:
+        # 1. Listar cuentas GBP
+        url = "https://mybusinessaccountmanagement.googleapis.com/v1/accounts"
+        response = requests.get(url, headers=auth_header, timeout=30)
+        response.raise_for_status()
+        cuentas = response.json().get("accounts", [])
+        
+        logger.info(f"  Cuentas GBP encontradas: {len(cuentas)}")
+        
+        # 2. Para cada cuenta, listar ubicaciones
+        for cuenta in cuentas:
+            account_name = cuenta.get("name", "")
+            
+            # Listar ubicaciones de la cuenta
+            url_locs = f"https://mybusinessbusinessinformation.googleapis.com/v1/{account_name}/locations"
+            params = {"readMask": "name,title,storefrontAddress,websiteUri,phoneNumbers,categories,latlng,openInfo,metadata,serviceArea,profile"}
+            
+      🔄 SINCRONIZAR UBICACIONES PRIMERO
+    ubicaciones_stats = sincronizar_ubicaciones_gbp(auth_header, supabase, nombre_nora or "Sistema")
+    
+    # Obtener locaciones activas (ahora incluye las recién sincronizadas)
+            while url_locs:
+                resp = requests.get(url_locs, headers=auth_header, params=params, timeout=30)
+                resp.raise_for_status()
+                data = resp.json()
+                
+                all_locations.extend(data.get("locations", []))
+                
+                next_token = data.get("nextPageToken")
+                if next_token:
+                    params["pageToken"] = next_token
+                else:
+                    url_locs = None
+            
+            stats['total'] += len(all_locations)
+            
+            # 3. Sincronizar cada ubicación
+            for loc in all_locations:
+                try:
+                    location_name = loc.get("name", "")
+                    if not location_name:
+                        continue
+                    
+                    # Extraer datos
+                    title = loc.get("title", "Sin título")
+                    address = loc.get("storefrontAddress", {})
+                    address_str = ", ".join(filter(None, [
+                        address.get("addressLines", [""])[0] if address.get("addressLines") else "",
+                        address.get("locality"),
+                        address.get("administrativeArea"),
+                        address.get("postalCode")
+                    ]))
+                    
+                    phone = loc.get("phoneNumbers", {}).get("primaryPhone", "")
+                    website = loc.get("websiteUri", "")
+                    
+                    ubicacion_data = {
+                        "location_name": location_name,
+                        "account_name": account_name,
+                        "title": title,
+                        "address": address_str or None,
+                        "phone": phone or None,
+                        "website_url": website or None,
+                        "nombre_nora": nombre_nora,
+                        "activa": True,
+                        "updated_at": datetime.utcnow().isoformat()
+                    }
+                    
+                    # Verificar si existe
+                    existing = supabase.table("gbp_locations").select("id").eq(
+                        "location_name", location_name
+                    ).execute()
+                    
+                    if existing.data and len(existing.data) > 0:
+                        # Actualizar
+                        supabase.table("gbp_locations").update(ubicacion_data).eq(
+                            "location_name", location_name
+                        ).execute()
+                        stats['actualizadas'] += 1
+                        logger.debug(f"  ✓ Actualizada: {title}")
+                    else:
+                        # Insertar nueva
+                        ubicacion_data["created_at"] = datetime.utcnow().isoformat()
+                        supabase.table("gbp_locations").insert(ubicacion_data).execute()
+                        stats['nuevas'] += 1
+                        logger.info(f"  ✅ Nueva ubicación: {title}")
+                        
+                        # 🔔 NOTIFICACIÓN TELEGRAM - Nueva ubicación detectada
+                        try:
+                            mensaje_nueva = f"""🆕 **Nueva ubicación de Google Business Profile detectada**
+
+📍 **{title}**
+🏢 Dirección: {address_str if address_str else 'N/A'}
+📞 Teléfono: {phone if phone else 'N/A'}
+🌐 Web: {website if website else 'N/A'}
+
+✅ Sincronizada automáticamente
+⏰ {datetime.now().strftime('%d/%m/%Y %H:%M')}"""
+                            
+                            telegram.enviar_mensaje(mensaje_nueva)
+                            logger.info(f"  📱 Notificación enviada para nueva ubicación: {title}")
+                        except Exception as e:
+                            logger.warning(f"  ⚠️ Error enviando notificación de nueva ubicación: {e}")
+                
+                except Exception as e:
+                    logger.error(f"  Error con ubicación {loc.get('name')}: {e}")
+                    stats['errores'] += 1
+        
+        logger.info(f"✅ Ubicaciones sincronizadas - Total: {stats['total']}, Nuevas: {stats['nuevas']}, Actualizadas: {stats['actualizadas']}")
+        
+    except Exception as e:
+        logger.error(f"Error sincronizando ubicaciones: {e}", exc_info=True)
+    
+    return stats
+
+
 def run(ctx=None):
     """
     Ejecuta el job de sincronización de métricas diarias.
     
-    1. Obtiene token de acceso de Google
-    2. Lee locaciones activas de Supabase
-    3. Para cada locación con location_id válido, descarga métricas
-    4. Inserta/actualiza métricas en BD
+    1. Sincroniza ubicaciones de GBP (nuevas, actualizadas)
+    2. Obtiene token de acceso de Google
+    3. Lee locaciones activas de Supabase
+    4. Para cada locación con location_id válido, descarga métricas
+    5. Inserta/actualiza métricas en BD
     """
     logger.info(f"Iniciando job: {JOB_NAME}")
     
@@ -102,15 +241,19 @@ def run(ctx=None):
             continue
     
     logger.info(f"Job {JOB_NAME} completado. Total métricas: {total_metrics}")
-    
-    # Crear alerta de job completado y notificar por Telegram
-    try:
+    # Mensaje con ubicaciones sincronizadas
+        descripcion = f"Se han sincronizado {total_metrics} métricas de {len(locations)} locaciones GBP (últimos {days_back} días)"
+        
+        # Agregar info de ubicaciones si hubo cambios
+        if ubicaciones_stats['nuevas'] > 0 or ubicaciones_stats['actualizadas'] > 0:
+            descripcion += f"\n\n📍 Ubicaciones: {ubicaciones_stats['nuevas']} nuevas, {ubicaciones_stats['actualizadas']} actualizadas"
+        
         crear_alerta(
             supabase=supabase,
             nombre=f"Métricas GBP Actualizadas",
             tipo="job_completado",
             nombre_nora="Sistema",
-            descripcion=f"Se han sincronizado {total_metrics} métricas de {len(locations)} locaciones GBP (últimos {days_back} días)",
+            descripcion=descripcion,
             evento_origen=JOB_NAME,
             datos={
                 "total_metricas": total_metrics,
@@ -118,6 +261,8 @@ def run(ctx=None):
                 "dias_atras": days_back,
                 "fecha_inicio": str(start_date),
                 "fecha_fin": str(end_date),
+                "ubicaciones_nuevas": ubicaciones_stats['nuevas'],
+                "ubicaciones_actualizadas": ubicaciones_stats['actualizadas'],
                 "job_name": JOB_NAME
             },
             prioridad="baja"
@@ -128,13 +273,18 @@ def run(ctx=None):
         chat_id = "5674082622"
         notifier = TelegramNotifier(bot_token=bot_token, default_chat_id=chat_id)
         
-        notifier.enviar_alerta(
-            nombre="📊 Métricas GBP Sincronizadas",
-            descripcion=f"Job completado exitosamente",
-            prioridad="baja",
-            datos={
-                "Total Métricas": total_metrics,
-                "Locaciones": len(locations),
+        mensaje_telegram = "📊 Métricas GBP Sincronizadas\n\n"
+        mensaje_telegram += f"✅ {total_metrics} métricas procesadas\n"
+        mensaje_telegram += f"📍 {len(locations)} ubicaciones activas\n"
+        
+        if ubicaciones_stats['nuevas'] > 0:
+            mensaje_telegram += f"🆕 {ubicaciones_stats['nuevas']} ubicaciones nuevas\n"
+        if ubicaciones_stats['actualizadas'] > 0:
+            mensaje_telegram += f"🔄 {ubicaciones_stats['actualizadas']} ubicaciones actualizadas\n"
+        
+        mensaje_telegram += f"\n⏱️ Período: {days_back} días"
+        
+        notifier.enviar_mensaje(mensaje_telegram        "Locaciones": len(locations),
                 "Período": f"{days_back} días"
             }
         )

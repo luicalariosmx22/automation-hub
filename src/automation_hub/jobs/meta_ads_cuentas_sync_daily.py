@@ -1,9 +1,11 @@
 """
-Job para sincronizar estado de cuentas publicitarias de Meta Ads.
-Detecta cuentas que han sido desactivadas y crea alertas.
+Job para sincronizar estado de cuentas publicitarias de Meta Ads y páginas de Facebook.
+Detecta cuentas desactivadas y nuevas páginas de Facebook.
 """
 import logging
 import os
+import requests
+from datetime import datetime
 from automation_hub.db.supabase_client import create_client_from_env
 from automation_hub.db.repositories.meta_ads_cuentas_repo import (
     fetch_cuentas_activas,
@@ -15,22 +17,156 @@ from automation_hub.integrations.meta_ads.accounts import (
     get_active_ads_count
 )
 from automation_hub.db.repositories.alertas_repo import crear_alerta
-from automation_hub.integrations.telegram.notifier import notificar_alerta_telegram
+from automation_hub.integrations.telegram.notifier import notificar_alerta_telegram, TelegramNotifier
 
 logger = logging.getLogger(__name__)
 
 JOB_NAME = "meta_ads.cuentas.sync.daily"
 
 
+def sincronizar_paginas_facebook(access_token: str, supabase) -> dict:
+    """
+    Sincroniza páginas de Facebook desde la API de Meta.
+    Detecta nuevas páginas y las agrega a facebook_paginas.
+    
+    Returns:
+        Dict con estadísticas: nuevas, actualizadas, total
+    """
+    logger.info("🔄 Sincronizando páginas de Facebook...")
+    
+    stats = {
+        'nuevas': 0,
+        'actualizadas': 0,
+        'total': 0,
+        'errores': 0
+    }
+    
+    telegram = TelegramNotifier(bot_nombre="Bot de Notificaciones")
+    
+    try:
+        # 1. Obtener usuario actual (me)
+        url_me = "https://graph.facebook.com/v21.0/me"
+        params = {
+      🔄 SINCRONIZAR PÁGINAS DE FACEBOOK PRIMERO
+    paginas_stats = sincronizar_paginas_facebook(access_token, supabase)
+    
+    #       'access_token': access_token,
+            'fields': 'id,name'
+        }
+        
+        response = requests.get(url_me, params=params, timeout=30)
+        response.raise_for_status()
+        user_data = response.json()
+        user_id = user_data.get('id')
+        
+        logger.info(f"  Usuario: {user_data.get('name')} ({user_id})")
+        
+        # 2. Obtener páginas del usuario
+        url_pages = f"https://graph.facebook.com/v21.0/{user_id}/accounts"
+        params = {
+            'access_token': access_token,
+            'fields': 'id,name,access_token,category,is_published'
+        }
+        
+        response = requests.get(url_pages, params=params, timeout=30)
+        response.raise_for_status()
+        pages_data = response.json()
+        
+        pages = pages_data.get('data', [])
+        stats['total'] = len(pages)
+        
+        logger.info(f"  Páginas encontradas: {len(pages)}")
+        
+        # 3. Sincronizar cada página
+        for page in pages:
+            try:
+                page_id = page.get('id')
+                if not page_id:
+                    continue
+                
+                page_name = page.get('name', 'Sin nombre')
+                page_token = page.get('access_token', '')
+                category = page.get('category', '')
+                is_published = page.get('is_published', True)
+                
+                # Verificar si existe
+                existing = supabase.table("facebook_paginas").select("id, nombre").eq(
+                    "page_id", page_id
+                ).execute()
+                
+                if existing.data and len(existing.data) > 0:
+                    # Ya existe - actualizar
+                    update_data = {
+                        "nombre": page_name,
+                        "updated_at": datetime.utcnow().isoformat()
+                    }
+                    
+                    supabase.table("facebook_paginas").update(update_data).eq(
+                        "page_id", page_id
+                    ).execute()
+                    
+                    stats['actualizadas'] += 1
+                    logger.debug(f"  ✓ Actualizada: {page_name}")
+                else:
+                    # Nueva página - insertar
+                    insert_data = {
+                        "page_id": page_id,
+                        "nombre": page_name,
+                        "page_access_token": page_token,
+                        "categoria": category,
+                        "activa": is_published,
+                        "publicar_en_gbp": False,  # Por defecto desactivado
+                        "created_at": datetime.utcnow().isoformat(),
+                        "updated_at": datetime.utcnow().isoformat()
+                    }
+                    
+                    supabase.table("facebook_paginas").insert(insert_data).execute()
+                    
+                    stats['nuevas'] += 1
+                    logger.info(f"  ✅ Nueva página: {page_name}")
+                    
+                    # 🔔 NOTIFICACIÓN TELEGRAM - Nueva página detectada
+                    try:
+                        mensaje_nueva = f"""🆕 **Nueva página de Facebook detectada**
+
+📄 **{page_name}**
+🆔 ID: {page_id}
+📁 Categoría: {category if category else 'N/A'}
+✅ Publicada: {'Sí' if is_published else 'No'}
+
+⚠️ **Acción requerida:** 
+- Vincular a una empresa en `cliente_empresas`
+- Activar `publicar_en_gbp` si se desea sincronizar con Google Business Profile
+
+⏰ {datetime.now().strftime('%d/%m/%Y %H:%M')}"""
+                        
+                        telegram.enviar_mensaje(mensaje_nueva)
+                        logger.info(f"  📱 Notificación enviada para nueva página: {page_name}")
+                    except Exception as e:
+                        logger.warning(f"  ⚠️ Error enviando notificación de nueva página: {e}")
+            
+            except Exception as e:
+                logger.error(f"  Error procesando página {page.get('name')}: {e}")
+                stats['errores'] += 1
+        
+        logger.info(f"✅ Páginas sincronizadas - Total: {stats['total']}, Nuevas: {stats['nuevas']}, Actualizadas: {stats['actualizadas']}")
+        
+    except Exception as e:
+        logger.error(f"Error sincronizando páginas de Facebook: {e}", exc_info=True)
+    
+    return stats
+
+
 def run(ctx=None):
     """
-    Ejecuta el job de sincronización de cuentas publicitarias.
+    Ejecuta el job de sincronización de cuentas publicitarias y páginas de Facebook.
     
-    1. Lee cuentas activas de Supabase
-    2. Para cada cuenta, consulta su estado en Meta Ads API
-    3. Detecta cambios de estado (activa → inactiva)
-    4. Crea alertas cuando una cuenta se desactiva
-    5. Actualiza información de anuncios activos
+    1. Sincroniza páginas de Facebook (nuevas, actualizadas)
+    2. Lee cuentas activas de Supabase
+    3. Para cada cuenta, consulta su estado en Meta Ads API
+    4. Detecta cambios de estado (activa → inactiva)
+    5. Crea alertas cuando una cuenta se desactiva
+    6. Actualiza información de anuncios activos
     """
     logger.info(f"Iniciando job: {JOB_NAME}")
     
@@ -184,12 +320,12 @@ def run(ctx=None):
     logger.info(f"Total cuentas: {stats['total']}")
     logger.info(f"Sincronizadas: {stats['sincronizadas']}")
     logger.info(f"Desactivadas detectadas: {stats['desactivadas']}")
-    logger.info(f"Errores: {stats['errores']}")
-    
-    # Crear alerta de resumen y notificación Telegram
-    if stats['desactivadas'] > 0 or stats['errores'] > 0:
+    logger.info(f"Errores: {stats['errores']}") or paginas_stats['nuevas'] > 0:
         try:
             descripcion = f"Sincronización completada: {stats['sincronizadas']} cuentas actualizadas"
+            
+            if paginas_stats['nuevas'] > 0:
+                descripcion += f", 🆕 {paginas_stats['nuevas']} páginas nuevas de Facebook"
             
             if stats['desactivadas'] > 0:
                 descripcion += f", ⚠️ {stats['desactivadas']} cuentas DESACTIVADAS detectadas"
@@ -208,23 +344,29 @@ def run(ctx=None):
                 evento_origen=JOB_NAME,
                 datos={
                     **stats,
+                    "paginas_nuevas": paginas_stats['nuevas'],
+                    "paginas_actualizadas": paginas_stats['actualizadas'],
                     "job_name": JOB_NAME
                 },
                 prioridad=prioridad
             )
             
             # Notificación por Telegram del resumen
-            notificar_alerta_telegram(
-                nombre="📊 Resumen: Sync Cuentas Meta Ads",
-                descripcion=descripcion,
-                prioridad=prioridad,
-                datos={
-                    "Total Cuentas": stats['total'],
-                    "Sincronizadas": stats['sincronizadas'],
-                    "Desactivadas": stats['desactivadas'],
-                    "Errores": stats['errores']
-                },
-                nombre_nora="Sistema",
+            mensaje_resumen = f"📊 Sync Meta Ads completado\n\n"
+            mensaje_resumen += f"✅ {stats['sincronizadas']} cuentas sincronizadas\n"
+            
+            if paginas_stats['nuevas'] > 0:
+                mensaje_resumen += f"🆕 {paginas_stats['nuevas']} páginas nuevas\n"
+            if paginas_stats['actualizadas'] > 0:
+                mensaje_resumen += f"🔄 {paginas_stats['actualizadas']} páginas actualizadas\n"
+            if stats['desactivadas'] > 0:
+                mensaje_resumen += f"⚠️ {stats['desactivadas']} cuentas desactivadas\n"
+            if stats['errores'] > 0:
+                mensaje_resumen += f"❌ {stats['errores']} errores\n"
+            
+            telegram = TelegramNotifier(bot_nombre="Bot Principal")
+            telegram.enviar_mensaje(mensaje_resumen)
+               nombre_nora="Sistema",
                 job_name=JOB_NAME,
                 tipo_alerta="job_completado"
             )

@@ -56,10 +56,6 @@ def sincronizar_ubicaciones_gbp(auth_header: dict, supabase, nombre_nora: str) -
             url_locs = f"https://mybusinessbusinessinformation.googleapis.com/v1/{account_name}/locations"
             params = {"readMask": "name,title,storefrontAddress,websiteUri,phoneNumbers,categories,latlng,openInfo,metadata,serviceArea,profile"}
             
-      🔄 SINCRONIZAR UBICACIONES PRIMERO
-    ubicaciones_stats = sincronizar_ubicaciones_gbp(auth_header, supabase, nombre_nora or "Sistema")
-    
-    # Obtener locaciones activas (ahora incluye las recién sincronizadas)
             while url_locs:
                 resp = requests.get(url_locs, headers=auth_header, params=params, timeout=30)
                 resp.raise_for_status()

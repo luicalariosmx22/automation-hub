@@ -55,11 +55,12 @@ def run(ctx=None):
             if tasa_error > 20:  # Más del 20% de errores
                 crear_alerta(
                     supabase=supabase,
+                    nombre="Alta tasa de errores en descarga de creativos Meta Ads",
                     tipo="warning",
-                    titulo="Alta tasa de errores en descarga de creativos Meta Ads",
-                    mensaje=f"Tasa de error: {tasa_error:.1f}% ({stats['errores']}/{stats['procesados']})",
-                    categoria="meta_ads_creative",
-                    severidad="medium"
+                    nombre_nora="sistema",
+                    descripcion=f"Tasa de error: {tasa_error:.1f}% ({stats['errores']}/{stats['procesados']})",
+                    evento_origen="meta_ads_creative_download_daily",
+                    prioridad="media"
                 )
         
         logger.info(f"✅ Job {JOB_NAME} completado exitosamente")
@@ -80,11 +81,12 @@ def run(ctx=None):
         try:
             crear_alerta(
                 supabase=supabase,
+                nombre=f"Error crítico en job {JOB_NAME}",
                 tipo="error",
-                titulo=f"Error crítico en job {JOB_NAME}",
-                mensaje=str(e),
-                categoria="meta_ads_creative",
-                severidad="high"
+                nombre_nora="sistema",
+                descripcion=str(e),
+                evento_origen=JOB_NAME,
+                prioridad="alta"
             )
         except:
             pass

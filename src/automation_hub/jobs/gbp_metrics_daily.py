@@ -237,52 +237,36 @@ def run(ctx=None):
             continue
     
     logger.info(f"Job {JOB_NAME} completado. Total métricas: {total_metrics}")
+    
     # Mensaje con ubicaciones sincronizadas
-        descripcion = f"Se han sincronizado {total_metrics} métricas de {len(locations)} locaciones GBP (últimos {days_back} días)"
-        
-        # Agregar info de ubicaciones si hubo cambios
-        if ubicaciones_stats['nuevas'] > 0 or ubicaciones_stats['actualizadas'] > 0:
-            descripcion += f"\n\n📍 Ubicaciones: {ubicaciones_stats['nuevas']} nuevas, {ubicaciones_stats['actualizadas']} actualizadas"
-        
-        crear_alerta(
-            supabase=supabase,
-            nombre=f"Métricas GBP Actualizadas",
-            tipo="job_completado",
-            nombre_nora="Sistema",
-            descripcion=descripcion,
-            evento_origen=JOB_NAME,
-            datos={
-                "total_metricas": total_metrics,
-                "total_locaciones": len(locations),
-                "dias_atras": days_back,
-                "fecha_inicio": str(start_date),
-                "fecha_fin": str(end_date),
-                "ubicaciones_nuevas": ubicaciones_stats['nuevas'],
-                "ubicaciones_actualizadas": ubicaciones_stats['actualizadas'],
-                "job_name": JOB_NAME
-            },
-            prioridad="baja"
-        )
-        
-        # Notificar por Telegram usando bot de notificaciones
-        bot_token = "8488045829:AAF5hEBfqe1BgUg3ninX24M15FeeDcS3NkE"
-        chat_id = "5674082622"
-        notifier = TelegramNotifier(bot_token=bot_token, default_chat_id=chat_id)
-        
-        mensaje_telegram = "📊 Métricas GBP Sincronizadas\n\n"
-        mensaje_telegram += f"✅ {total_metrics} métricas procesadas\n"
-        mensaje_telegram += f"📍 {len(locations)} ubicaciones activas\n"
-        
-        if ubicaciones_stats['nuevas'] > 0:
-            mensaje_telegram += f"🆕 {ubicaciones_stats['nuevas']} ubicaciones nuevas\n"
-        if ubicaciones_stats['actualizadas'] > 0:
-            mensaje_telegram += f"🔄 {ubicaciones_stats['actualizadas']} ubicaciones actualizadas\n"
-        
-        mensaje_telegram += f"\n⏱️ Período: {days_back} días"
-        
-        notifier.enviar_mensaje(mensaje_telegram        "Locaciones": len(locations),
-                "Período": f"{days_back} días"
-            }
-        )
-    except Exception as e:
-        logger.warning(f"No se pudo crear alerta: {e}")
+    descripcion = f"Se han sincronizado {total_metrics} métricas de {len(locations)} locaciones GBP (últimos {days_back} días)"
+    
+    # Agregar info de ubicaciones si hubo cambios
+    if ubicaciones_stats['nuevas'] > 0 or ubicaciones_stats['actualizadas'] > 0:
+        descripcion += f"\n\n📍 Ubicaciones: {ubicaciones_stats['nuevas']} nuevas, {ubicaciones_stats['actualizadas']} actualizadas"
+    
+    crear_alerta(
+        supabase=supabase,
+        nombre=f"Métricas GBP Actualizadas",
+        tipo="job_completado",
+        nombre_nora="Sistema",
+        descripcion=descripcion,
+        evento_origen=JOB_NAME,
+        datos={
+            "total_metricas": total_metrics,
+            "total_locaciones": len(locations),
+            "dias_atras": days_back,
+            "fecha_inicio": str(start_date),
+            "fecha_fin": str(end_date),
+            "ubicaciones_nuevas": ubicaciones_stats['nuevas'],
+            "ubicaciones_actualizadas": ubicaciones_stats['actualizadas'],
+            "job_name": JOB_NAME
+        },
+        prioridad="baja"
+    )
+
+
+if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    run()

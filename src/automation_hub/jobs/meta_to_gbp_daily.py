@@ -93,13 +93,27 @@ def run(ctx=None):
         
         page_id = pub.get("page_id")
         post_id = pub.get("post_id")
-        mensaje = pub.get("mensaje")
-        imagen_url = pub.get("imagen_url")
-        imagen_local = pub.get("imagen_local")
-        video_local = pub.get("video_local")
+        
+        # Convertir valores JSON a tipos esperados (str o None)
+        mensaje_raw = pub.get("mensaje")
+        mensaje = str(mensaje_raw) if mensaje_raw and isinstance(mensaje_raw, (str, int, float)) else None
+        
+        imagen_url_raw = pub.get("imagen_url")
+        imagen_url = str(imagen_url_raw) if imagen_url_raw and isinstance(imagen_url_raw, str) else None
+        
+        imagen_local_raw = pub.get("imagen_local")
+        imagen_local = str(imagen_local_raw) if imagen_local_raw and isinstance(imagen_local_raw, str) else None
+        
+        video_local_raw = pub.get("video_local")
+        video_local = str(video_local_raw) if video_local_raw and isinstance(video_local_raw, str) else None
+        
+        # Validar que haya mensaje válido
+        if not mensaje or not isinstance(mensaje, str) or not mensaje.strip():
+            logger.warning(f"Publicación {post_id} sin mensaje válido, omitiendo")
+            continue
         
         # CONTROL DE LÍMITE DE VIDEOS - verificar ANTES de procesar
-        es_video_post = bool(video_local and video_local.strip())
+        es_video_post = bool(video_local and isinstance(video_local, str) and video_local.strip())
         
         if es_video_post and videos_procesados >= MAX_VIDEOS_PER_RUN:
             logger.info(f"🎥 LÍMITE DE VIDEOS ALCANZADO ({MAX_VIDEOS_PER_RUN}). Post {post_id} (video) será procesado en la próxima ejecución.")
@@ -118,11 +132,14 @@ def run(ctx=None):
         else:
             # NO PUBLICAR si no hay contenido multimedia válido
             if video_local:
-                logger.warning(f"❌ Video_local rechazado (inválido): {video_local[:50] if video_local else 'None'}...")
+                video_preview = str(video_local)[:50] if video_local else 'None'
+                logger.warning(f"❌ Video_local rechazado (inválido): {video_preview}...")
             if imagen_local:
-                logger.warning(f"❌ Imagen_local rechazada (inválida): {imagen_local[:50] if imagen_local else 'None'}...")
+                imagen_local_preview = str(imagen_local)[:50] if imagen_local else 'None'
+                logger.warning(f"❌ Imagen_local rechazada (inválida): {imagen_local_preview}...")
             if imagen_url:
-                logger.warning(f"❌ Imagen_url rechazada (inválida): {imagen_url[:50] if imagen_url else 'None'}...")
+                imagen_url_preview = str(imagen_url)[:50] if imagen_url else 'None'
+                logger.warning(f"❌ Imagen_url rechazada (inválida): {imagen_url_preview}...")
             
             logger.info(f"⏭️  SALTANDO publicación {post_id} - sin contenido multimedia válido")
             continue  # Saltar esta publicación

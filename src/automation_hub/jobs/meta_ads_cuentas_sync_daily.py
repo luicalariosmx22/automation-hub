@@ -47,10 +47,7 @@ def sincronizar_paginas_facebook(access_token: str, supabase) -> dict:
         # 1. Obtener usuario actual (me)
         url_me = "https://graph.facebook.com/v21.0/me"
         params = {
-      🔄 SINCRONIZAR PÁGINAS DE FACEBOOK PRIMERO
-    paginas_stats = sincronizar_paginas_facebook(access_token, supabase)
-    
-    #       'access_token': access_token,
+            'access_token': access_token,
             'fields': 'id,name'
         }
         
@@ -320,7 +317,10 @@ def run(ctx=None):
     logger.info(f"Total cuentas: {stats['total']}")
     logger.info(f"Sincronizadas: {stats['sincronizadas']}")
     logger.info(f"Desactivadas detectadas: {stats['desactivadas']}")
-    logger.info(f"Errores: {stats['errores']}") or paginas_stats['nuevas'] > 0:
+    logger.info(f"Errores: {stats['errores']}")
+    
+    # Crear alerta de resumen si hubo cambios
+    if stats['sincronizadas'] > 0 or paginas_stats['nuevas'] > 0:
         try:
             descripcion = f"Sincronización completada: {stats['sincronizadas']} cuentas actualizadas"
             
@@ -366,9 +366,6 @@ def run(ctx=None):
             
             telegram = TelegramNotifier(bot_nombre="Bot Principal")
             telegram.enviar_mensaje(mensaje_resumen)
-               nombre_nora="Sistema",
-                job_name=JOB_NAME,
-                tipo_alerta="job_completado"
-            )
+            
         except Exception as e:
             logger.warning(f"No se pudo crear alerta de resumen: {e}")

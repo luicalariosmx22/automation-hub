@@ -2,6 +2,7 @@
 Job para publicar posts de Facebook a Google Business Profile.
 """
 import logging
+import os
 import time
 from datetime import datetime
 from automation_hub.integrations.google.oauth import get_bearer_header
@@ -9,12 +10,40 @@ from automation_hub.integrations.gbp.posts_v1 import create_local_post
 from automation_hub.db.supabase_client import create_client_from_env
 from automation_hub.db.repositories.alertas_repo import crear_alerta
 from automation_hub.integrations.telegram.notifier import TelegramNotifier
+import requests
 
 logger = logging.getLogger(__name__)
 
 JOB_NAME = "meta_to_gbp_daily"
 MAX_VIDEOS_PER_RUN = 10  # Máximo videos por ejecución
 VIDEO_DELAY_SECONDS = 120  # 2 minutos de delay entre videos
+
+
+def enviar_alerta_whatsapp(phone: str, message: str, title: str = "Alerta"):
+    """Envía una alerta por WhatsApp."""
+    try:
+        whatsapp_url = os.getenv("WHATSAPP_SERVER_URL", "http://192.168.68.68:3000/send-alert")
+        
+        payload = {
+            "phone": phone,
+            "title": title,
+            "message": message
+        }
+        
+        headers = {"Content-Type": "application/json"}
+        
+        response = requests.post(whatsapp_url, json=payload, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            logger.info(f"📱 WhatsApp enviado a {phone}")
+            return True
+        else:
+            logger.warning(f"⚠️  Error enviando WhatsApp: {response.status_code}")
+            return False
+            
+    except Exception as e:
+        logger.warning(f"⚠️  Error enviando WhatsApp: {e}")
+        return False
 
 
 def es_url_valida_para_gbp(url: str) -> bool:
@@ -104,8 +133,18 @@ def run(ctx=None):
         imagen_local_raw = pub.get("imagen_local")
         imagen_local = str(imagen_local_raw) if imagen_local_raw and isinstance(imagen_local_raw, str) else None
         
+        # Rechazar imagen_local si NO es de Supabase Storage
+        if imagen_local and 'supabase.co/storage/v1/object/public' not in imagen_local:
+            logger.debug(f"❌ Imagen_local rechazada (no es Supabase): {imagen_local[:60]}...")
+            imagen_local = None
+        
         video_local_raw = pub.get("video_local")
         video_local = str(video_local_raw) if video_local_raw and isinstance(video_local_raw, str) else None
+        
+        # Rechazar video_local si NO es de Supabase Storage
+        if video_local and 'supabase.co/storage/v1/object/public' not in video_local:
+            logger.debug(f"❌ Video_local rechazado (no es Supabase): {video_local[:60]}...")
+            video_local = None
         
         # Validar que haya mensaje válido
         if not mensaje or not isinstance(mensaje, str) or not mensaje.strip():
@@ -118,33 +157,6 @@ def run(ctx=None):
         if es_video_post and videos_procesados >= MAX_VIDEOS_PER_RUN:
             logger.info(f"🎥 LÍMITE DE VIDEOS ALCANZADO ({MAX_VIDEOS_PER_RUN}). Post {post_id} (video) será procesado en la próxima ejecución.")
             continue  # Saltar este video
-        
-        # Priorizar video_local si existe
-        if video_local and isinstance(video_local, str) and es_url_valida_para_gbp(video_local):
-            media_url_valida = video_local
-            logger.info(f"✅ Video válido encontrado: {video_local[:50]}...")
-        elif imagen_local and isinstance(imagen_local, str) and es_url_valida_para_gbp(imagen_local):
-            media_url_valida = imagen_local
-            logger.info(f"✅ Contenido válido encontrado (imagen_local): {imagen_local[:50]}...")
-        elif imagen_url and isinstance(imagen_url, str) and es_url_valida_para_gbp(imagen_url):
-            media_url_valida = imagen_url
-            logger.info(f"✅ Contenido válido encontrado (imagen_url): {imagen_url[:50]}...")
-        else:
-            # NO PUBLICAR si no hay contenido multimedia válido
-            if video_local:
-                video_preview = str(video_local)[:50] if video_local else 'None'
-                logger.warning(f"❌ Video_local rechazado (inválido): {video_preview}...")
-            if imagen_local:
-                imagen_local_preview = str(imagen_local)[:50] if imagen_local else 'None'
-                logger.warning(f"❌ Imagen_local rechazada (inválida): {imagen_local_preview}...")
-            if imagen_url:
-                imagen_url_preview = str(imagen_url)[:50] if imagen_url else 'None'
-                logger.warning(f"❌ Imagen_url rechazada (inválida): {imagen_url_preview}...")
-            
-            logger.info(f"⏭️  SALTANDO publicación {post_id} - sin contenido multimedia válido")
-            continue  # Saltar esta publicación
-
-        # Si llegamos aquí, tenemos contenido multimedia válido - proceder con la publicación
         
         try:
             # Obtener empresa_id y verificar si debe publicarse en GBP
@@ -175,7 +187,7 @@ def run(ctx=None):
             logger.info(f"Empresa encontrada: {empresa_id} (publicar_en_gbp=True)")
             
             # Obtener locaciones activas de esa empresa
-            locations_response = supabase.table("gbp_locations").select("location_name, nombre_nora, title, store_code").eq("empresa_id", empresa_id).eq("activa", True).execute()
+            locations_response = supabase.table("gbp_locations").select("location_name, nombre_nora, title").eq("empresa_id", empresa_id).eq("activa", True).execute()
             
             if not locations_response.data:
                 logger.warning(f"No se encontraron locaciones activas para empresa_id: {empresa_id}")
@@ -208,9 +220,15 @@ def run(ctx=None):
                     continue
                 
                 try:
-                    logger.info(f"Publicando en {location_name}")
+                    logger.info(f"Publicando en {location_name}...")
+                    if video_local:
+                        logger.info(f"  Con video: {video_local[:80]}...")
+                    elif imagen_local:
+                        logger.info(f"  Con imagen_local: {imagen_local[:80]}...")
+                    elif imagen_url:
+                        logger.info(f"  Con imagen_url: {imagen_url[:80]}...")
                     
-                    # Crear post en GBP - ahora maneja videos y fotos automáticamente
+                    # Crear post en GBP - pasar directamente video_local, imagen_local, imagen_url
                     gbp_post = create_local_post(
                         location_name=location_name,
                         auth_header=auth_header,
@@ -219,6 +237,9 @@ def run(ctx=None):
                         imagen_local=imagen_local,
                         imagen_url=imagen_url
                     )
+                    
+                    # Determinar qué media se usó para el registro
+                    media_usado = video_local or imagen_local or imagen_url
                     
                     # Registrar en gbp_publicaciones
                     gbp_post_name = "N/A"
@@ -231,7 +252,7 @@ def run(ctx=None):
                         "estado": "publicada",
                         "gbp_post_name": gbp_post_name,
                         "contenido": mensaje,
-                        "imagen_url": media_url_valida,
+                        "imagen_url": media_usado,
                         "published_at": datetime.utcnow().isoformat()
                     }).execute()
                     
@@ -242,10 +263,10 @@ def run(ctx=None):
                         
                         # Detectar tipo de contenido para emoji
                         contenido_icon = "📝"  # Default
-                        if media_url_valida:
+                        if media_usado:
                             if video_local:
                                 contenido_icon = "🎥"  # Video
-                            elif any(ext in media_url_valida.lower() for ext in ['.mp4', '.mov', '.m4v', '.avi', '.webm']):
+                            elif any(ext in media_usado.lower() for ext in ['.mp4', '.mov', '.m4v', '.avi', '.webm']):
                                 contenido_icon = "🎥"  # Video
                             else:
                                 contenido_icon = "🖼️"  # Imagen
@@ -259,10 +280,10 @@ def run(ctx=None):
 ⏰ {datetime.now().strftime('%H:%M')}"""
                         
                         # Intentar enviar con imagen si está disponible y es imagen (no video)
-                        if media_url_valida and contenido_icon == "🖼️":
+                        if media_usado and contenido_icon == "🖼️":
                             try:
                                 # Enviar imagen con caption
-                                telegram.enviar_imagen(media_url_valida, mensaje_notif)
+                                telegram.enviar_imagen(media_usado, mensaje_notif)
                                 logger.info(f"📱🖼️ Notificación con imagen enviada para {post_id} en {nombre_display}")
                             except:
                                 # Si falla enviar imagen, enviar solo texto
@@ -271,6 +292,15 @@ def run(ctx=None):
                         else:
                             telegram.enviar_mensaje(mensaje_notif)
                             logger.info(f"📱 Notificación enviada para {post_id} en {nombre_display} ({contenido_icon})")
+                        
+                        # 📱 TAMBIÉN ENVIAR POR WHATSAPP
+                        whatsapp_phone = os.getenv("WHATSAPP_ALERT_PHONE", "5216629360887")
+                        if whatsapp_phone:
+                            enviar_alerta_whatsapp(
+                                phone=whatsapp_phone,
+                                title=f"Google Maps - {nombre_display}",
+                                message=mensaje_notif
+                            )
                     except Exception as e:
                         logger.warning(f"⚠️ Error enviando notificación: {e}")
                     
@@ -305,7 +335,7 @@ def run(ctx=None):
                         "tipo": "FROM_FACEBOOK",
                         "estado": "error",
                         "contenido": mensaje,
-                        "imagen_url": media_url_valida or imagen_local,
+                        "imagen_url": media_usado,
                         "error_mensaje": error_msg[:500],
                         "created_at": datetime.utcnow().isoformat()
                     }).execute()

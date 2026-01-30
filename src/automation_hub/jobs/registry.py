@@ -54,6 +54,7 @@ def _register_default_jobs():
         from automation_hub.jobs import (
             gbp_reviews_daily,
             gbp_metrics_daily,
+            gbp_locations_sync,
             meta_ads_rechazos_daily,
             meta_ads_cuentas_sync_daily,
             meta_ads_anuncios_daily,
@@ -67,6 +68,7 @@ def _register_default_jobs():
         
         register_job("gbp.reviews.daily", gbp_reviews_daily.run)
         register_job("gbp.metrics.daily", gbp_metrics_daily.run)
+        register_job("gbp.locations.sync", gbp_locations_sync.run)
         register_job("meta_ads.rechazos.daily", meta_ads_rechazos_daily.run)
         register_job("meta_ads.cuentas.sync.daily", meta_ads_cuentas_sync_daily.run)
         register_job("meta_ads.anuncios.daily", meta_ads_anuncios_daily.run)

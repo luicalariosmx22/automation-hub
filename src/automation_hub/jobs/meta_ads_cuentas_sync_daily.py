@@ -24,6 +24,33 @@ logger = logging.getLogger(__name__)
 JOB_NAME = "meta_ads.cuentas.sync.daily"
 
 
+def enviar_alerta_whatsapp(phone: str, message: str, title: str = "Alerta"):
+    """Envía una alerta por WhatsApp."""
+    try:
+        whatsapp_url = os.getenv("WHATSAPP_SERVER_URL", "http://192.168.68.68:3000/send-alert")
+        
+        payload = {
+            "phone": phone, 
+            "title": title,
+            "message": message
+        }
+        
+        headers = {"Content-Type": "application/json"}
+        
+        response = requests.post(whatsapp_url, json=payload, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            logger.info(f"📱 WhatsApp enviado a {phone}")
+            return True
+        else:
+            logger.warning(f"⚠️  Error enviando WhatsApp: {response.status_code}")
+            return False
+            
+    except Exception as e:
+        logger.warning(f"⚠️  Error enviando WhatsApp: {e}")
+        return False
+
+
 def sincronizar_paginas_facebook(access_token: str, supabase) -> dict:
     """
     Sincroniza páginas de Facebook desde la API de Meta.
@@ -139,6 +166,15 @@ def sincronizar_paginas_facebook(access_token: str, supabase) -> dict:
                         
                         telegram.enviar_mensaje(mensaje_nueva)
                         logger.info(f"  📱 Notificación enviada para nueva página: {page_name}")
+                        
+                        # 📱 TAMBIÉN ENVIAR POR WHATSAPP
+                        whatsapp_phone = os.getenv("WHATSAPP_ALERT_PHONE", "5216629360887")
+                        if whatsapp_phone:
+                            enviar_alerta_whatsapp(
+                                phone=whatsapp_phone,
+                                title="Nueva Página Facebook",
+                                message=mensaje_nueva
+                            )
                     except Exception as e:
                         logger.warning(f"  ⚠️ Error enviando notificación de nueva página: {e}")
             
@@ -178,7 +214,12 @@ def run(ctx=None):
     # Crear cliente Supabase
     supabase = create_client_from_env()
     
+    # 1. SINCRONIZAR PÁGINAS DE FACEBOOK PRIMERO
+    logger.info("=== SINCRONIZACIÓN DE PÁGINAS DE FACEBOOK ===")
+    paginas_stats = sincronizar_paginas_facebook(access_token, supabase)
+    
     # Obtener cuentas activas
+    logger.info("=== SINCRONIZACIÓN DE CUENTAS PUBLICITARIAS ===")
     logger.info("Obteniendo cuentas publicitarias activas")
     cuentas = fetch_cuentas_activas(supabase, nombre_nora)
     
@@ -186,7 +227,7 @@ def run(ctx=None):
         logger.warning("No se encontraron cuentas publicitarias activas")
         return
     
-    # Estadísticas
+    # Estadísticas de cuentas publicitarias
     stats = {
         "total": len(cuentas),
         "sincronizadas": 0,
@@ -287,6 +328,28 @@ def run(ctx=None):
                         job_name=JOB_NAME,
                         tipo_alerta="cuenta_desactivada"
                     )
+                    
+                    # 📱 TAMBIÉN ENVIAR POR WHATSAPP
+                    whatsapp_phone = os.getenv("WHATSAPP_ALERT_PHONE", "5216629360887")
+                    if whatsapp_phone:
+                        mensaje_whatsapp = f"""🚨 Cuenta Meta Ads Desactivada
+
+📊 {nombre_cuenta}
+🏢 {empresa_nombre or 'N/A'}
+🆔 {id_cuenta_publicitaria}
+
+⚠️ Esto puede deberse a:
+• Problemas de pago
+• Incumplimiento de políticas
+• Límites de gasto alcanzados
+
+⏰ {datetime.now().strftime('%d/%m/%Y %H:%M')}"""
+                        
+                        enviar_alerta_whatsapp(
+                            phone=whatsapp_phone,
+                            title="🚨 Cuenta Desactivada",
+                            message=mensaje_whatsapp
+                        )
                 except Exception as e:
                     logger.error(f"Error creando alerta para {nombre_cuenta}: {e}")
             
@@ -320,11 +383,11 @@ def run(ctx=None):
     logger.info(f"Errores: {stats['errores']}")
     
     # Crear alerta de resumen si hubo cambios
-    if stats['sincronizadas'] > 0 or paginas_stats['nuevas'] > 0:
+    if stats['sincronizadas'] > 0 or paginas_stats.get('nuevas', 0) > 0:
         try:
             descripcion = f"Sincronización completada: {stats['sincronizadas']} cuentas actualizadas"
             
-            if paginas_stats['nuevas'] > 0:
+            if paginas_stats.get('nuevas', 0) > 0:
                 descripcion += f", 🆕 {paginas_stats['nuevas']} páginas nuevas de Facebook"
             
             if stats['desactivadas'] > 0:
@@ -344,8 +407,8 @@ def run(ctx=None):
                 evento_origen=JOB_NAME,
                 datos={
                     **stats,
-                    "paginas_nuevas": paginas_stats['nuevas'],
-                    "paginas_actualizadas": paginas_stats['actualizadas'],
+                    "paginas_nuevas": paginas_stats.get('nuevas', 0),
+                    "paginas_actualizadas": paginas_stats.get('actualizadas', 0),
                     "job_name": JOB_NAME
                 },
                 prioridad=prioridad
@@ -355,9 +418,9 @@ def run(ctx=None):
             mensaje_resumen = f"📊 Sync Meta Ads completado\n\n"
             mensaje_resumen += f"✅ {stats['sincronizadas']} cuentas sincronizadas\n"
             
-            if paginas_stats['nuevas'] > 0:
+            if paginas_stats.get('nuevas', 0) > 0:
                 mensaje_resumen += f"🆕 {paginas_stats['nuevas']} páginas nuevas\n"
-            if paginas_stats['actualizadas'] > 0:
+            if paginas_stats.get('actualizadas', 0) > 0:
                 mensaje_resumen += f"🔄 {paginas_stats['actualizadas']} páginas actualizadas\n"
             if stats['desactivadas'] > 0:
                 mensaje_resumen += f"⚠️ {stats['desactivadas']} cuentas desactivadas\n"

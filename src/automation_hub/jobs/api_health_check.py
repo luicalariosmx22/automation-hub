@@ -391,6 +391,76 @@ def verificar_encryption_key() -> Tuple[bool, str]:
         return False, f"Error: {str(e)}"
 
 
+def verificar_google_calendar() -> Tuple[bool, str]:
+    """Verifica tokens de Google Calendar desde la tabla google_calendar_sync en Supabase."""
+    try:
+        from google.oauth2.credentials import Credentials
+        from google.auth.transport.requests import Request
+        from automation_hub.db.supabase_client import create_client_from_env
+        
+        client_id = os.getenv("GOOGLE_OAUTH_CLIENT_ID")
+        client_secret = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+        
+        if not all([client_id, client_secret]):
+            return False, "Credenciales OAuth incompletas"
+        
+        # Conectar a Supabase y obtener todos los tokens de usuarios
+        supabase = create_client_from_env()
+        response = supabase.table("google_calendar_sync").select("nombre_nora, refresh_token").execute()
+        
+        if not response.data:
+            return True, "Sin calendarios conectados (OK)"
+        
+        tokens = response.data
+        total = len(tokens)
+        expirados = []
+        validos = []
+        
+        # Verificar cada token
+        for token_data in tokens:
+            nombre = token_data.get("nombre_nora", "Desconocido")
+            refresh_token = token_data.get("refresh_token")
+            
+            if not refresh_token or len(refresh_token) < 30:
+                expirados.append(nombre)
+                continue
+            
+            try:
+                # Intentar refrescar token
+                credentials = Credentials(
+                    token=None,
+                    refresh_token=refresh_token,
+                    token_uri="https://oauth2.googleapis.com/token",
+                    client_id=client_id,
+                    client_secret=client_secret
+                )
+                
+                request = Request()
+                credentials.refresh(request)
+                
+                if credentials.token:
+                    validos.append(nombre)
+                else:
+                    expirados.append(nombre)
+                    
+            except Exception as e:
+                if "invalid_grant" in str(e).lower():
+                    expirados.append(nombre)
+                else:
+                    expirados.append(f"{nombre} (error)")
+        
+        # Reportar resultados
+        if expirados:
+            usuarios_exp = ", ".join(expirados)
+            return False, f"⚠️ {len(expirados)}/{total} tokens expirados: {usuarios_exp}"
+        else:
+            return True, f"✅ {total} calendarios conectados OK"
+            
+    except Exception as e:
+        error_str = str(e)
+        return False, f"Error verificando: {error_str[:80]}"
+
+
 def run(ctx=None):
     """
     Ejecuta la verificación de todos los servicios y envía reporte.
@@ -403,6 +473,7 @@ def run(ctx=None):
         "DeepSeek API": verificar_deepseek,
         "Gemini API": verificar_gemini,
         "Google OAuth (GBP)": verificar_google_oauth,
+        "Google Calendar": verificar_google_calendar,
         "Meta/Facebook API": verificar_meta,
         "Meta App Config": verificar_meta_app,
         "Meta Webhook Config": verificar_meta_webhook,

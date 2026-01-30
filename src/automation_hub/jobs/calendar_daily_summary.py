@@ -20,8 +20,36 @@ from automation_hub.db.repositories.alertas_repo import crear_alerta
 from automation_hub.integrations.telegram.notifier import TelegramNotifier
 from automation_hub.integrations.google_calendar.sync_service import GoogleCalendarSyncService
 import os
+import requests
 
 logger = logging.getLogger(__name__)
+
+
+def enviar_alerta_whatsapp(phone: str, message: str, title: str = "Alerta"):
+    """Envía una alerta por WhatsApp."""
+    try:
+        whatsapp_url = os.getenv("WHATSAPP_SERVER_URL", "http://192.168.68.68:3000/send-alert")
+        
+        payload = {
+            "phone": phone,
+            "title": title,
+            "message": message
+        }
+        
+        headers = {"Content-Type": "application/json"}
+        
+        response = requests.post(whatsapp_url, json=payload, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            logger.info(f"📱 WhatsApp enviado a {phone}")
+            return True
+        else:
+            logger.warning(f"⚠️  Error enviando WhatsApp: {response.status_code}")
+            return False
+            
+    except Exception as e:
+        logger.warning(f"⚠️  Error enviando WhatsApp: {e}")
+        return False
 
 
 def run():
@@ -181,6 +209,15 @@ def run():
         else:
             # Fallback al chat por defecto
             notifier.enviar_mensaje(mensaje)
+        
+        # 📱 ENVIAR TAMBIÉN POR WHATSAPP
+        whatsapp_phone = os.getenv("WHATSAPP_ALERT_PHONE", "5216629360887")
+        if whatsapp_phone:
+            enviar_alerta_whatsapp(
+                phone=whatsapp_phone,
+                title="Agenda del día",
+                message=mensaje
+            )
         
         logger.info(f"Resumen diario enviado: {len(citas)} citas")
         logger.info("=== Resumen diario de citas completado ===")

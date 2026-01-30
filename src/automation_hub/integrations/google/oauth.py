@@ -4,8 +4,10 @@ Manejo de autenticación OAuth2 con Google.
 import logging
 import os
 from typing import Optional
+from datetime import datetime, timezone
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
+from automation_hub.db.supabase_client import create_client_from_env
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +35,103 @@ def _clean(value: Optional[str]) -> Optional[str]:
     return v if v else None
 
 
+def get_gbp_creds_from_db(tenant: str = "default") -> Credentials:
+    """
+    Obtiene credenciales de GBP desde la tabla google_oauth_tokens en Supabase.
+    
+    Args:
+        tenant: Nombre del tenant (ej: 'aura', 'default')
+    
+    Returns:
+        Credentials de Google con token válido
+        
+    Raises:
+        ValueError: Si no se encuentra el token o falla la validación
+        Exception: Si falla el refresh del token
+    """
+    supabase = create_client_from_env()
+    
+    # Leer client_id y client_secret del .env
+    client_id = _clean(os.getenv("GOOGLE_CLIENT_ID"))
+    client_secret = _clean(os.getenv("GOOGLE_CLIENT_SECRET"))
+    
+    # Validar credenciales de OAuth
+    if not client_id:
+        raise ValueError("GOOGLE_CLIENT_ID no configurado o vacío")
+    if not client_secret:
+        raise ValueError("GOOGLE_CLIENT_SECRET no configurado o vacío")
+    if not client_id.endswith(".apps.googleusercontent.com"):
+        raise ValueError("GOOGLE_CLIENT_ID debe terminar en .apps.googleusercontent.com")
+    if len(client_secret) < 20:
+        raise ValueError("GOOGLE_CLIENT_SECRET parece inválido (longitud insuficiente)")
+    
+    # Obtener token desde la base de datos
+    try:
+        result = supabase.table("google_oauth_tokens").select("*").eq(
+            "tenant", tenant
+        ).eq("provider", "google").execute()
+        
+        if not result.data:
+            raise ValueError(f"No se encontró token de Google OAuth para el tenant '{tenant}' en la base de datos")
+        
+        token_data = result.data[0]
+        refresh_token = token_data.get("refresh_token")
+        access_token = token_data.get("access_token")
+        expires_at = token_data.get("expires_at")
+        
+        if not refresh_token:
+            raise ValueError(f"refresh_token no encontrado para el tenant '{tenant}'")
+        
+        # Crear credenciales
+        credentials = Credentials(
+            token=access_token,
+            refresh_token=refresh_token,
+            token_uri="https://oauth2.googleapis.com/token",
+            client_id=client_id,
+            client_secret=client_secret
+        )
+        
+        # Verificar si necesita refresh
+        needs_refresh = True
+        if access_token and expires_at:
+            try:
+                expires_dt = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+                if expires_dt > datetime.now(timezone.utc):
+                    needs_refresh = False
+                    logger.info(f"Token aún válido para tenant '{tenant}'")
+            except Exception:
+                pass
+        
+        # Refrescar si es necesario
+        if needs_refresh:
+            logger.info(f"Refrescando token de acceso para tenant '{tenant}'")
+            request = Request()
+            credentials.refresh(request)
+            
+            # Actualizar token en la base de datos
+            update_data = {
+                "access_token": credentials.token,
+                "expires_at": datetime.fromtimestamp(credentials.expiry.timestamp(), tz=timezone.utc).isoformat() if credentials.expiry else None,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            supabase.table("google_oauth_tokens").update(update_data).eq(
+                "tenant", tenant
+            ).eq("provider", "google").execute()
+            
+            logger.info(f"Token actualizado exitosamente para tenant '{tenant}'")
+        
+        return credentials
+    
+    except Exception as e:
+        logger.error(f"Error obteniendo token de Google OAuth para tenant '{tenant}': {e}")
+        raise
+
+
 def get_gbp_creds_from_env() -> Credentials:
     """
-    Obtiene credenciales de GBP desde variables de entorno y las refresca.
-    Implementa validaciones similares a Nora panel_cliente_google_maps.
+    Obtiene credenciales de GBP desde la base de datos (mantiene compatibilidad).
+    Por defecto usa el tenant 'aura'.
     
     Returns:
         Credentials de Google con token válido
@@ -45,48 +140,9 @@ def get_gbp_creds_from_env() -> Credentials:
         ValueError: Si faltan variables o son inválidas
         Exception: Si falla el refresh del token
     """
-    # Leer y limpiar variables de entorno
-    client_id = _clean(os.getenv("GOOGLE_CLIENT_ID"))
-    client_secret = _clean(os.getenv("GOOGLE_CLIENT_SECRET"))
-    refresh_token = _clean(os.getenv("GBP_REFRESH_TOKEN"))
-    
-    # Validar que existan
-    if not client_id:
-        raise ValueError("GOOGLE_CLIENT_ID no configurado o vacío")
-    if not client_secret:
-        raise ValueError("GOOGLE_CLIENT_SECRET no configurado o vacío")
-    if not refresh_token:
-        raise ValueError("GBP_REFRESH_TOKEN no configurado o vacío")
-    
-    # Validar formato client_id
-    if not client_id.endswith(".apps.googleusercontent.com"):
-        raise ValueError("GOOGLE_CLIENT_ID debe terminar en .apps.googleusercontent.com")
-    
-    # Validar longitud mínima del secret
-    if len(client_secret) < 20:
-        raise ValueError("GOOGLE_CLIENT_SECRET parece inválido (longitud insuficiente)")
-    
-    # Crear credenciales
-    try:
-        credentials = Credentials(
-            token=None,
-            refresh_token=refresh_token,
-            token_uri="https://oauth2.googleapis.com/token",
-            client_id=client_id,
-            client_secret=client_secret
-        )
-        
-        # Refrescar token
-        logger.info("Refrescando token de acceso de Google OAuth")
-        request = Request()
-        credentials.refresh(request)
-        
-        logger.info("Token de acceso obtenido exitosamente")
-        return credentials
-    
-    except Exception as e:
-        logger.error(f"Error obteniendo token de acceso de Google: {e}")
-        raise ValueError("No se pudo refrescar el token de OAuth. Verifica que el refresh_token sea válido y corresponda al client_id/secret configurado") from e
+    # Intentar obtener el tenant desde variable de entorno, sino usar 'aura'
+    tenant = os.getenv("GOOGLE_OAUTH_TENANT", "aura")
+    return get_gbp_creds_from_db(tenant)
 
 
 def get_bearer_header() -> dict:

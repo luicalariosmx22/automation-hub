@@ -16,6 +16,7 @@ from automation_hub.integrations.meta_ads.accounts import (
     get_ad_account_info,
     get_active_ads_count
 )
+from automation_hub.integrations.meta_ads.token_resolver import resolve_meta_token
 from automation_hub.db.repositories.alertas_repo import crear_alerta
 from automation_hub.integrations.telegram.notifier import notificar_alerta_telegram, TelegramNotifier
 
@@ -205,18 +206,33 @@ def run(ctx=None):
     
     # Obtener configuración
     nombre_nora = os.getenv("META_ADS_NOMBRE_NORA")  # Opcional
-    access_token = os.getenv("META_ADS_ACCESS_TOKEN")
-    
-    if not access_token:
-        logger.error("META_ADS_ACCESS_TOKEN no configurado")
-        return
-    
+
     # Crear cliente Supabase
     supabase = create_client_from_env()
+
+    # Resolver token para sincronización de páginas (best-effort)
+    token_paginas, source_paginas = resolve_meta_token(
+        supabase,
+        nombre_nora,
+        fallback_noras=["Sistema"],
+        allow_env_fallback=True,
+    )
+    if token_paginas:
+        logger.info(f"Token Meta para sync de páginas obtenido desde: {source_paginas}")
+    else:
+        logger.warning("No se encontró token para sincronizar páginas de Facebook. Se omitirá ese paso.")
     
     # 1. SINCRONIZAR PÁGINAS DE FACEBOOK PRIMERO
     logger.info("=== SINCRONIZACIÓN DE PÁGINAS DE FACEBOOK ===")
-    paginas_stats = sincronizar_paginas_facebook(access_token, supabase)
+    if token_paginas:
+        paginas_stats = sincronizar_paginas_facebook(token_paginas, supabase)
+    else:
+        paginas_stats = {
+            'nuevas': 0,
+            'actualizadas': 0,
+            'total': 0,
+            'errores': 0
+        }
     
     # Obtener cuentas activas
     logger.info("=== SINCRONIZACIÓN DE CUENTAS PUBLICITARIAS ===")
@@ -251,6 +267,26 @@ def run(ctx=None):
         
         try:
             logger.info(f"Sincronizando cuenta: {nombre_cuenta} ({id_cuenta_publicitaria})")
+
+            # Resolver token por Nora (tabla meta_tokens -> fallback env)
+            access_token, token_source = resolve_meta_token(
+                supabase,
+                nombre_nora_cuenta,
+                fallback_noras=["Sistema"],
+                allow_env_fallback=True,
+            )
+            if not access_token:
+                msg = f"No hay token activo de Meta para nombre_nora='{nombre_nora_cuenta}'"
+                logger.error(msg)
+                registrar_error_cuenta(
+                    supabase,
+                    id_interno,
+                    msg,
+                    "TOKEN_NOT_FOUND"
+                )
+                stats["errores"] += 1
+                continue
+            logger.debug(f"Token Meta resuelto desde: {token_source}")
             
             # Obtener info de Meta Ads API
             account_info = get_ad_account_info(id_cuenta_publicitaria, access_token)

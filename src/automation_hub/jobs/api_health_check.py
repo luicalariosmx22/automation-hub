@@ -21,6 +21,8 @@ import json
 from typing import Dict, List, Tuple
 from datetime import datetime
 import requests
+from automation_hub.db.supabase_client import create_client_from_env
+from automation_hub.integrations.meta_ads.token_resolver import resolve_meta_token, token_from_env
 
 logger = logging.getLogger(__name__)
 
@@ -190,13 +192,48 @@ def verificar_google_oauth() -> Tuple[bool, str]:
 def verificar_meta() -> Tuple[bool, str]:
     """Verifica que el token de Meta/Facebook funcione."""
     try:
-        access_token = os.getenv("META_ACCESS_REDACTED_TOKEN") or os.getenv("META_ADS_ACCESS_TOKEN") or os.getenv("META_USER_ACCESS_TOKEN")
-        
+        access_token = None
+        token_source = None
+
+        try:
+            supabase = create_client_from_env()
+            rows = (
+                supabase.table("meta_tokens")
+                .select("nombre_nora")
+                .eq("provider", "meta")
+                .eq("status", "active")
+                .not_.is_("token", "null")
+                .limit(200)
+                .execute()
+            )
+
+            noras = sorted({r.get("nombre_nora") for r in (rows.data or []) if r.get("nombre_nora")})
+            if "Sistema" in noras:
+                noras.remove("Sistema")
+                noras.insert(0, "Sistema")
+
+            for nora in noras:
+                token, source = resolve_meta_token(
+                    supabase,
+                    nora,
+                    fallback_noras=[],
+                    allow_env_fallback=False,
+                )
+                if token:
+                    access_token = token
+                    token_source = source
+                    break
+        except Exception as e:
+            logger.warning(f"No se pudo resolver token de Meta desde BD para health check: {e}")
+
         if not access_token:
-            return False, "Access token no configurado"
-        
+            access_token, token_source = token_from_env()
+
+        if not access_token:
+            return False, "Access token no configurado (ni en meta_tokens ni en env)"
+
         if "REDACTED" in access_token:
-            return False, "Token es REDACTED"
+            return False, f"Token es REDACTED ({token_source or 'unknown'})"
         
         # Verificar token con debug
         response = requests.get(
@@ -207,13 +244,13 @@ def verificar_meta() -> Tuple[bool, str]:
         if response.status_code == 200:
             data = response.json()
             if data.get("data", {}).get("is_valid"):
-                return True, "OK"
+                return True, f"OK ({token_source or 'unknown'})"
             else:
-                return False, "Token no válido"
+                return False, f"Token no válido ({token_source or 'unknown'})"
         elif response.status_code == 400:
-            return False, "Token inválido o expirado"
+            return False, f"Token inválido o expirado ({token_source or 'unknown'})"
         else:
-            return False, f"Error HTTP {response.status_code}"
+            return False, f"Error HTTP {response.status_code} ({token_source or 'unknown'})"
             
     except Exception as e:
         return False, f"Error: {str(e)}"

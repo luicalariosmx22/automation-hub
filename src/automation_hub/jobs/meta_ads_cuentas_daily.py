@@ -11,6 +11,7 @@ from automation_hub.db.repositories.meta_ads_cuentas_repo import (
     marcar_error_cuenta
 )
 from automation_hub.db.repositories.alertas_repo import crear_alerta
+from automation_hub.integrations.meta_ads.token_resolver import resolve_meta_token
 
 logger = logging.getLogger(__name__)
 
@@ -95,12 +96,7 @@ def run(ctx=None):
     
     # Cargar configuración
     nombre_nora = os.getenv("META_ADS_NOMBRE_NORA")  # Opcional
-    access_token = os.getenv("META_ADS_ACCESS_TOKEN")
-    
-    if not access_token:
-        logger.error("META_ADS_ACCESS_TOKEN no configurado")
-        return
-    
+
     # Crear cliente Supabase
     supabase = create_client_from_env()
     
@@ -127,6 +123,7 @@ def run(ctx=None):
     for cuenta in cuentas:
         cuenta_id = cuenta.get("id_cuenta_publicitaria")
         nombre = cuenta.get("nombre_cliente") or cuenta.get("nombre_cuenta") or cuenta_id
+        nombre_nora_cuenta = cuenta.get("nombre_nora") or nombre_nora or "Sistema"
         
         if not cuenta_id:
             logger.warning(f"Cuenta sin ID: {cuenta}")
@@ -134,6 +131,32 @@ def run(ctx=None):
         
         try:
             logger.info(f"Procesando cuenta: {nombre}")
+
+            access_token, token_source = resolve_meta_token(
+                supabase,
+                nombre_nora_cuenta,
+                fallback_noras=["Sistema"],
+                allow_env_fallback=True,
+            )
+
+            if not access_token:
+                error_msg = f"No hay token activo de Meta para nombre_nora='{nombre_nora_cuenta}'"
+                logger.error(error_msg)
+                stats["errores"] += 1
+                marcar_error_cuenta(
+                    supabase,
+                    cuenta_id,
+                    error_msg,
+                    {"job": JOB_NAME, "code": "TOKEN_NOT_FOUND", "timestamp": datetime.utcnow().isoformat()}
+                )
+                cuentas_con_error.append({
+                    "id": cuenta_id,
+                    "nombre": nombre,
+                    "error": error_msg
+                })
+                continue
+
+            logger.debug(f"Token Meta resuelto desde: {token_source}")
             
             # Obtener información de Meta API
             info_cuenta = obtener_info_cuenta_meta(cuenta_id, access_token)

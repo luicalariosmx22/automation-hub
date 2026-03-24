@@ -1,0 +1,794 @@
+{
+  "NOMBRE_NORA": {
+    "count": 3,
+    "files": [
+      "actualizar_ubicaciones_gbp.py",
+      "src/automation_hub/jobs/calendar_daily_summary.py",
+      "src/automation_hub/jobs/calendar_sync.py"
+    ]
+  },
+  "SUPABASE_URL": {
+    "count": 5,
+    "files": [
+      "aplicar_migracion_health_check.py",
+      "forzar_next_run.py",
+      "src/automation_hub/db/supabase_client.py",
+      "ver_jobs_config.py",
+      "verificar_damage_simple.py"
+    ]
+  },
+  "SUPABASE_KEY": {
+    "count": 6,
+    "files": [
+      "aplicar_migracion_health_check.py",
+      "forzar_next_run.py",
+      "src/automation_hub/db/supabase_client.py",
+      "src/automation_hub/runners/preflight.py",
+      "ver_jobs_config.py",
+      "verificar_damage_simple.py"
+    ]
+  },
+  "GOOGLE_CLIENT_ID": {
+    "count": 5,
+    "files": [
+      "diagnosticar_google_oauth.py",
+      "src/automation_hub/integrations/google/oauth.py",
+      "src/automation_hub/jobs/api_health_check.py",
+      "src/automation_hub/jobs/token_renewal_server.py",
+      "src/automation_hub/runners/preflight.py"
+    ]
+  },
+  "GOOGLE_OAUTH_CLIENT_ID": {
+    "count": 4,
+    "files": [
+      "diagnosticar_google_oauth.py",
+      "src/automation_hub/integrations/google_calendar/sync_service.py",
+      "src/automation_hub/jobs/api_health_check.py",
+      "src/automation_hub/jobs/token_renewal_server.py"
+    ]
+  },
+  "GOOGLE_CLIENT_SECRET": {
+    "count": 5,
+    "files": [
+      "diagnosticar_google_oauth.py",
+      "src/automation_hub/integrations/google/oauth.py",
+      "src/automation_hub/jobs/api_health_check.py",
+      "src/automation_hub/jobs/token_renewal_server.py",
+      "src/automation_hub/runners/preflight.py"
+    ]
+  },
+  "GOOGLE_OAUTH_CLIENT_SECRET": {
+    "count": 4,
+    "files": [
+      "diagnosticar_google_oauth.py",
+      "src/automation_hub/integrations/google_calendar/sync_service.py",
+      "src/automation_hub/jobs/api_health_check.py",
+      "src/automation_hub/jobs/token_renewal_server.py"
+    ]
+  },
+  "GBP_REFRESH_TOKEN": {
+    "count": 3,
+    "files": [
+      "diagnosticar_google_oauth.py",
+      "src/automation_hub/jobs/api_health_check.py",
+      "src/automation_hub/runners/preflight.py"
+    ]
+  },
+  "GOOGLE_CALENDAR_REFRESH_TOKEN": {
+    "count": 1,
+    "files": [
+      "diagnosticar_google_oauth.py"
+    ]
+  },
+  "META_ACCESS_REDACTED_TOKEN": {
+    "count": 5,
+    "files": [
+      "meta_ads_sync_all.py",
+      "src/automation_hub/integrations/meta_ads/daily_sync_service.py",
+      "src/automation_hub/integrations/meta_ads/demographic_sync_service.py",
+      "src/automation_hub/integrations/meta_ads/sync_service.py",
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "HAS_NEW_MSG_COLS": {
+    "count": 2,
+    "files": [
+      "meta_ads_sync_all.py",
+      "sincronizador_personalizado.py"
+    ]
+  },
+  "NAMES_CACHE_TTL": {
+    "count": 3,
+    "files": [
+      "meta_ads_sync_all.py",
+      "src/automation_hub/integrations/meta_ads/daily_sync_service.py",
+      "src/automation_hub/integrations/meta_ads/sync_service.py"
+    ]
+  },
+  "META_API_VERSION": {
+    "count": 4,
+    "files": [
+      "meta_ads_sync_all.py",
+      "sincronizador_personalizado.py",
+      "src/automation_hub/integrations/meta_ads/daily_sync_service.py",
+      "src/automation_hub/integrations/meta_ads/sync_service.py"
+    ]
+  },
+  "META_SYNC_DEBUG": {
+    "count": 4,
+    "files": [
+      "meta_ads_sync_all.py",
+      "sincronizador_personalizado.py",
+      "src/automation_hub/integrations/meta_ads/daily_sync_service.py",
+      "src/automation_hub/integrations/meta_ads/sync_service.py"
+    ]
+  },
+  "META_SYNC_LOG_EVERY": {
+    "count": 3,
+    "files": [
+      "meta_ads_sync_all.py",
+      "src/automation_hub/integrations/meta_ads/daily_sync_service.py",
+      "src/automation_hub/integrations/meta_ads/sync_service.py"
+    ]
+  },
+  "META_TEST_LAST_N": {
+    "count": 1,
+    "files": [
+      "meta_media_worker.py"
+    ]
+  },
+  "META_TEST_TIPO": {
+    "count": 1,
+    "files": [
+      "meta_media_worker.py"
+    ]
+  },
+  "META_TEST_NORA": {
+    "count": 1,
+    "files": [
+      "meta_media_worker.py"
+    ]
+  },
+  "FLASK_ENV": {
+    "count": 1,
+    "files": [
+      "sincronizador_personalizado.py"
+    ]
+  },
+  "ALLOW_DEVTOOLS": {
+    "count": 1,
+    "files": [
+      "sincronizador_personalizado.py"
+    ]
+  },
+  "WHATSAPP_SERVER_URL": {
+    "count": 4,
+    "files": [
+      "src/automation_hub/jobs/calendar_daily_summary.py",
+      "src/automation_hub/jobs/meta_ads_cuentas_sync_daily.py",
+      "src/automation_hub/jobs/meta_to_gbp_daily.py",
+      "test_alerta_cuenta_desactivada.py"
+    ]
+  },
+  "WHATSAPP_ALERT_PHONE": {
+    "count": 4,
+    "files": [
+      "src/automation_hub/jobs/calendar_daily_summary.py",
+      "src/automation_hub/jobs/meta_ads_cuentas_sync_daily.py",
+      "src/automation_hub/jobs/meta_to_gbp_daily.py",
+      "test_alerta_cuenta_desactivada.py"
+    ]
+  },
+  "XDG_CONFIG_HOME": {
+    "count": 2,
+    "files": [
+      ".venv/Lib/site-packages/pkg_resources/_vendor/appdirs.py",
+      ".venv/Lib/site-packages/pycodestyle.py"
+    ]
+  },
+  "COVERAGE_PROFILE": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/cmdline.py"
+    ]
+  },
+  "COVERAGE_RCFILE": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/config.py"
+    ]
+  },
+  "COVERAGE_FILE": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/config.py"
+    ]
+  },
+  "COVERAGE_DEBUG": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/config.py"
+    ]
+  },
+  "COVERAGE_CORE": {
+    "count": 3,
+    "files": [
+      ".venv/Lib/site-packages/coverage/config.py",
+      ".venv/Lib/site-packages/coverage/core.py",
+      ".venv/Lib/site-packages/coverage/patch.py"
+    ]
+  },
+  "COVERAGE_FORCE_CONFIG": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/config.py"
+    ]
+  },
+  "COVERAGE_DEBUG_CALLS": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/control.py"
+    ]
+  },
+  "COVERAGE_PROCESS_CONFIG": {
+    "count": 2,
+    "files": [
+      ".venv/Lib/site-packages/coverage/control.py",
+      ".venv/Lib/site-packages/coverage/pth_file.py"
+    ]
+  },
+  "COVERAGE_PROCESS_START": {
+    "count": 2,
+    "files": [
+      ".venv/Lib/site-packages/coverage/control.py",
+      ".venv/Lib/site-packages/coverage/pth_file.py"
+    ]
+  },
+  "PYTEST_CURRENT_TEST": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/debug.py"
+    ]
+  },
+  "COVERAGE_DEBUG_FILE": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/debug.py"
+    ]
+  },
+  "COVERAGE_COVERAGE": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/env.py"
+    ]
+  },
+  "COVERAGE_TESTING": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/env.py"
+    ]
+  },
+  "COVERAGE_AST_DUMP": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/parser.py"
+    ]
+  },
+  "COVERAGE_TRACK_ARCS": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/parser.py"
+    ]
+  },
+  "PYTHONPYCACHEPREFIX": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/patch.py"
+    ]
+  },
+  "PATH": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/patch.py"
+    ]
+  },
+  "COVERAGE_SYSMON_LOG": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/sysmon.py"
+    ]
+  },
+  "COVERAGE_SYSMON_STATS": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/sysmon.py"
+    ]
+  },
+  "PANSEQ": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/coverage/sysmon.py"
+    ]
+  },
+  "GCE_METADATA_TIMEOUT": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/google/auth/compute_engine/_metadata.py"
+    ]
+  },
+  "MYPY_CACHE_DIR": {
+    "count": 2,
+    "files": [
+      ".venv/Lib/site-packages/mypy/main.py",
+      ".venv/Lib/site-packages/mypy/stubgen.py"
+    ]
+  },
+  "MYPYPATH": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/mypy/modulefinder.py"
+    ]
+  },
+  "MYPY_TEST_PREFIX": {
+    "count": 3,
+    "files": [
+      ".venv/Lib/site-packages/mypy/modulefinder.py",
+      ".venv/Lib/site-packages/mypy/test/config.py",
+      ".venv/Lib/site-packages/mypyc/test/config.py"
+    ]
+  },
+  "MYPY_FORCE_TERMINAL_WIDTH": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/mypy/util.py"
+    ]
+  },
+  "MYPY_FORCE_COLOR": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/mypy/util.py"
+    ]
+  },
+  "FORCE_COLOR": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/mypy/util.py"
+    ]
+  },
+  "TEST_MYPYC": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/mypy/test/testmypyc.py"
+    ]
+  },
+  "MYPYC_OPT_LEVEL": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/mypyc/__main__.py"
+    ]
+  },
+  "MYPYC_DEBUG_LEVEL": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/mypyc/__main__.py"
+    ]
+  },
+  "MYPYC_STRICT_DUNDER_TYPING": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/mypyc/__main__.py"
+    ]
+  },
+  "MYPYC_LOG_TRACE": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/mypyc/__main__.py"
+    ]
+  },
+  "ANDROID_DATA": {
+    "count": 2,
+    "files": [
+      ".venv/Lib/site-packages/pip/_vendor/platformdirs/__init__.py",
+      ".venv/Lib/site-packages/platformdirs/__init__.py"
+    ]
+  },
+  "ANDROID_ROOT": {
+    "count": 2,
+    "files": [
+      ".venv/Lib/site-packages/pip/_vendor/platformdirs/__init__.py",
+      ".venv/Lib/site-packages/platformdirs/__init__.py"
+    ]
+  },
+  "SHELL": {
+    "count": 2,
+    "files": [
+      ".venv/Lib/site-packages/pip/_vendor/platformdirs/__init__.py",
+      ".venv/Lib/site-packages/platformdirs/__init__.py"
+    ]
+  },
+  "PREFIX": {
+    "count": 2,
+    "files": [
+      ".venv/Lib/site-packages/pip/_vendor/platformdirs/__init__.py",
+      ".venv/Lib/site-packages/platformdirs/__init__.py"
+    ]
+  },
+  "DATABRICKS_RUNTIME_VERSION": {
+    "count": 2,
+    "files": [
+      ".venv/Lib/site-packages/pip/_vendor/rich/console.py",
+      ".venv/Lib/site-packages/rich/console.py"
+    ]
+  },
+  "XDG_DATA_HOME": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/pkg_resources/_vendor/appdirs.py"
+    ]
+  },
+  "XDG_DATA_DIRS": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/pkg_resources/_vendor/appdirs.py"
+    ]
+  },
+  "XDG_CONFIG_DIRS": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/pkg_resources/_vendor/appdirs.py"
+    ]
+  },
+  "XDG_CACHE_HOME": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/pkg_resources/_vendor/appdirs.py"
+    ]
+  },
+  "XDG_STATE_HOME": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/pkg_resources/_vendor/appdirs.py"
+    ]
+  },
+  "PYDANTIC_PRIVATE_ALLOW_UNHANDLED_SCHEMA_TYPES": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/pydantic/json_schema.py"
+    ]
+  },
+  "PYDANTIC_DISABLE_PLUGINS": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/pydantic/plugin/_loader.py"
+    ]
+  },
+  "HOME": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/pygments/formatters/img.py"
+    ]
+  },
+  "SETUPTOOLS_ENABLE_FEATURES": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/setuptools/build_meta.py"
+    ]
+  },
+  "SETUPTOOLS_EXT_SUFFIX": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/setuptools/command/build_ext.py"
+    ]
+  },
+  "__EASYINSTALL_INDEX": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/setuptools/command/easy_install.py"
+    ]
+  },
+  "JSONSCHEMA_DEBUG_CODE_GENERATION": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/setuptools/config/_validate_pyproject/error_reporting.py"
+    ]
+  },
+  "NO_NETWORK": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/setuptools/config/_validate_pyproject/formats.py"
+    ]
+  },
+  "VALIDATE_PYPROJECT_NO_NETWORK": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/setuptools/config/_validate_pyproject/formats.py"
+    ]
+  },
+  "DIST_EXTRA_CONFIG": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/setuptools/_distutils/dist.py"
+    ]
+  },
+  "DISTUTILS_USE_SDK": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/setuptools/_distutils/_msvccompiler.py"
+    ]
+  },
+  "path": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/setuptools/_distutils/_msvccompiler.py"
+    ]
+  },
+  "PYTEST_THEME": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/_pytest/_io/terminalwriter.py"
+    ]
+  },
+  "PYTEST_THEME_MODE": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/_pytest/_io/terminalwriter.py"
+    ]
+  },
+  "PY_IGNORE_IMPORTMISMATCH": {
+    "count": 1,
+    "files": [
+      ".venv/Lib/site-packages/_pytest/_py/path.py"
+    ]
+  },
+  "TELEGRAM_BOT_TOKEN_CITAS": {
+    "count": 2,
+    "files": [
+      "scripts/migrar_bots_telegram.py",
+      "src/automation_hub/jobs/calendar_daily_summary.py"
+    ]
+  },
+  "TELEGRAM_BOT_TOKEN": {
+    "count": 3,
+    "files": [
+      "scripts/migrar_bots_telegram.py",
+      "src/automation_hub/integrations/telegram/notifier.py",
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "LOG_LEVEL": {
+    "count": 2,
+    "files": [
+      "src/automation_hub/config/logging.py",
+      "src/automation_hub/config/settings.py"
+    ]
+  },
+  "ENVIRONMENT": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/config/settings.py"
+    ]
+  },
+  "TZ": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/config/settings.py"
+    ]
+  },
+  "GOOGLE_OAUTH_TENANT": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/integrations/google/oauth.py"
+    ]
+  },
+  "GOOGLE_OAUTH_REDIRECT_URI": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/integrations/google_calendar/sync_service.py"
+    ]
+  },
+  "BASE_URL": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/integrations/google_calendar/sync_service.py"
+    ]
+  },
+  "TELEGRAM_CHAT_ID": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/integrations/telegram/notifier.py"
+    ]
+  },
+  "YOUTUBE_CLIENT_SECRETS_FILE": {
+    "count": 3,
+    "files": [
+      "src/automation_hub/integrations/youtube/oauth.py",
+      "src/automation_hub/integrations/youtube/routes.py",
+      "src/automation_hub/jobs/youtube_shorts_daily.py"
+    ]
+  },
+  "OPENAI_API_KEY": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "DEEPSEEK_API_KEY": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "GEMINI_API_KEY": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "GOOGLE_CLIENT_REDACTED_SECRET": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "META_ADS_ACCESS_TOKEN": {
+    "count": 3,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py",
+      "src/automation_hub/jobs/meta_ads_cuentas_daily.py",
+      "src/automation_hub/jobs/meta_ads_cuentas_sync_daily.py"
+    ]
+  },
+  "META_USER_ACCESS_TOKEN": {
+    "count": 2,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py",
+      "src/automation_hub/jobs/meta_comentarios_automation.py"
+    ]
+  },
+  "TIKTOK_CLIENT_KEY": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "TIKTOK_CLIENT_SECRET": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "SMTP_USER": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "SMTP_PASSWORD": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "SMTP_HOST": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "SMTP_PORT": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "RAILWAY_TOKEN": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "RAILWAY_PROJECT_ID": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "RAILWAY_SERVICE_ID": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "META_WEBHOOK_VERIFY_REDACTED_TOKEN": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "META_WEBHOOK_URL": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "META_WEBHOOK_REDACTED_SECRET": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "META_APP_ID": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "META_APP_REDACTED_SECRET": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "NORA_ENCRYPTION_KEY": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/api_health_check.py"
+    ]
+  },
+  "GBP_NOMBRE_NORA": {
+    "count": 2,
+    "files": [
+      "src/automation_hub/jobs/gbp_metrics_daily.py",
+      "src/automation_hub/jobs/gbp_reviews_daily.py"
+    ]
+  },
+  "GBP_METRICS": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/gbp_metrics_daily.py"
+    ]
+  },
+  "GBP_DAYS_BACK": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/gbp_metrics_daily.py"
+    ]
+  },
+  "META_ADS_NOMBRE_NORA": {
+    "count": 2,
+    "files": [
+      "src/automation_hub/jobs/meta_ads_cuentas_daily.py",
+      "src/automation_hub/jobs/meta_ads_cuentas_sync_daily.py"
+    ]
+  },
+  "META_ACCESS_TOKEN": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/jobs/meta_comentarios_automation.py"
+    ]
+  },
+  "USE_DB_CONFIG": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/runners/run_batch.py"
+    ]
+  },
+  "JOB_LIST": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/runners/run_batch.py"
+    ]
+  },
+  "JOB_GROUP": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/runners/run_batch.py"
+    ]
+  },
+  "FAIL_FAST": {
+    "count": 1,
+    "files": [
+      "src/automation_hub/runners/run_batch.py"
+    ]
+  }
+}

@@ -2,28 +2,39 @@
 Job para publicar posts de Facebook a Google Business Profile.
 """
 import logging
-import os
 import time
 from datetime import datetime
+from typing import Optional
+
+import requests
+
 from automation_hub.integrations.google.oauth import get_bearer_header
 from automation_hub.integrations.gbp.posts_v1 import create_local_post
 from automation_hub.db.supabase_client import create_client_from_env
 from automation_hub.db.repositories.alertas_repo import crear_alerta
 from automation_hub.integrations.telegram.notifier import TelegramNotifier
-import requests
+from automation_hub.config.settings import load_settings, Settings
 
 logger = logging.getLogger(__name__)
 
 JOB_NAME = "meta_to_gbp_daily"
 MAX_VIDEOS_PER_RUN = 10  # Máximo videos por ejecución
 VIDEO_DELAY_SECONDS = 120  # 2 minutos de delay entre videos
+DEFAULT_WHATSAPP_URL = "http://192.168.68.68:3000/send-alert"
+DEFAULT_WHATSAPP_ALERT_PHONE = "5216629360887"
 
 
-def enviar_alerta_whatsapp(phone: str, message: str, title: str = "Alerta"):
+def enviar_alerta_whatsapp(
+    phone: str,
+    message: str,
+    title: str = "Alerta",
+    settings: Optional[Settings] = None,
+):
     """Envía una alerta por WhatsApp."""
     try:
-        whatsapp_url = os.getenv("WHATSAPP_SERVER_URL", "http://192.168.68.68:3000/send-alert")
-        
+        settings_obj = settings or load_settings()
+        whatsapp_url = settings_obj.whatsapp.server_url or DEFAULT_WHATSAPP_URL
+
         payload = {
             "phone": phone,
             "title": title,
@@ -44,6 +55,36 @@ def enviar_alerta_whatsapp(phone: str, message: str, title: str = "Alerta"):
     except Exception as e:
         logger.warning(f"⚠️  Error enviando WhatsApp: {e}")
         return False
+def build_full_location_name(account_name: Optional[str], location_name: Optional[str], location_id: Optional[str] = None) -> str:
+    """
+    Devuelve el resource name correcto para GBP posts:
+    accounts/*/locations/*
+    
+    Evita duplicación cuando location_name ya viene completo desde la API.
+    """
+    if not location_name:
+        return ""
+
+    # Caso ideal: ya viene completo desde la API (accounts/.../locations/...)
+    if isinstance(location_name, str) and location_name.startswith("accounts/") and "/locations/" in location_name:
+        logger.debug(f"✅ location_name ya completo: {location_name}")
+        return location_name
+
+    # Si te llega "locations/123" y tienes account_name
+    if account_name and isinstance(location_name, str) and location_name.startswith("locations/"):
+        full = f"{account_name}/{location_name}"
+        logger.debug(f"✅ Construido desde locations/: {full}")
+        return full
+
+    # Si te llega solo el id "123" y tienes ambos
+    if account_name and location_id:
+        full = f"{account_name}/locations/{location_id}"
+        logger.debug(f"✅ Construido desde location_id: {full}")
+        return full
+
+    # Último recurso: devolver tal cual
+    logger.warning(f"⚠️  No se pudo construir full_location_name correctamente: {location_name}")
+    return location_name
 
 
 def es_url_valida_para_gbp(url: str) -> bool:
@@ -79,6 +120,7 @@ def run(ctx=None):
        - Marca como procesada
     """
     logger.info(f"Iniciando job: {JOB_NAME}")
+    settings = load_settings()
     
     # Obtener header de autorización (valida OAuth internamente)
     logger.info("Obteniendo credenciales de Google OAuth")
@@ -129,6 +171,11 @@ def run(ctx=None):
         
         imagen_url_raw = pub.get("imagen_url")
         imagen_url = str(imagen_url_raw) if imagen_url_raw and isinstance(imagen_url_raw, str) else None
+        
+        # Rechazar imagen_url si NO es de Supabase Storage (puede tener tokens, redirects, etc.)
+        if imagen_url and not es_url_valida_para_gbp(imagen_url):
+            logger.debug(f"❌ Imagen_url rechazada (no es Supabase): {imagen_url[:60]}...")
+            imagen_url = None
         
         imagen_local_raw = pub.get("imagen_local")
         imagen_local = str(imagen_local_raw) if imagen_local_raw and isinstance(imagen_local_raw, str) else None
@@ -186,8 +233,8 @@ def run(ctx=None):
             
             logger.info(f"Empresa encontrada: {empresa_id} (publicar_en_gbp=True)")
             
-            # Obtener locaciones activas de esa empresa
-            locations_response = supabase.table("gbp_locations").select("location_name, nombre_nora, title").eq("empresa_id", empresa_id).eq("activa", True).execute()
+            # Obtener locaciones activas de esa empresa (IMPORTANTE: incluir account_name y location_id)
+            locations_response = supabase.table("gbp_locations").select("account_name, location_name, location_id, nombre_nora, title, store_code").eq("empresa_id", empresa_id).eq("activa", True).execute()
             
             if not locations_response.data:
                 logger.warning(f"No se encontraron locaciones activas para empresa_id: {empresa_id}")
@@ -204,7 +251,9 @@ def run(ctx=None):
                     logger.warning(f"Locación inválida (no es dict): {loc}")
                     continue
                     
+                account_name = loc.get("account_name")
                 location_name = loc.get("location_name")
+                location_id = loc.get("location_id")
                 nombre_nora = loc.get("nombre_nora", "Sistema")
                 title = loc.get("title", "")
                 store_code = loc.get("store_code", "")
@@ -219,8 +268,25 @@ def run(ctx=None):
                     logger.warning(f"Locación sin location_name válido: {loc}")
                     continue
                 
+                # Construir el nombre completo usando el helper (evita duplicación)
+                full_location_name = build_full_location_name(
+                    str(account_name) if account_name else None,
+                    str(location_name) if location_name else None,
+                    str(location_id) if location_id else None,
+                )
+                
+                if not full_location_name:
+                    logger.warning(f"No se pudo construir full_location_name para: {loc}")
+                    continue
+                
+                # LOG para validar que no hay duplicación
+                logger.info(f"📍 account_name={account_name} | location_name={location_name} | full={full_location_name}")
+                
+                # Determinar qué media se usó ANTES de intentar publicar
+                media_usado = video_local or imagen_local or imagen_url
+                
                 try:
-                    logger.info(f"Publicando en {location_name}...")
+                    logger.info(f"Publicando en {full_location_name}...")
                     if video_local:
                         logger.info(f"  Con video: {video_local[:80]}...")
                     elif imagen_local:
@@ -228,9 +294,9 @@ def run(ctx=None):
                     elif imagen_url:
                         logger.info(f"  Con imagen_url: {imagen_url[:80]}...")
                     
-                    # Crear post en GBP - pasar directamente video_local, imagen_local, imagen_url
+                    # Crear post en GBP - usar nombre completo con account
                     gbp_post = create_local_post(
-                        location_name=location_name,
+                        location_name=full_location_name,
                         auth_header=auth_header,
                         summary=mensaje,
                         video_local=video_local,
@@ -238,15 +304,12 @@ def run(ctx=None):
                         imagen_url=imagen_url
                     )
                     
-                    # Determinar qué media se usó para el registro
-                    media_usado = video_local or imagen_local or imagen_url
-                    
                     # Registrar en gbp_publicaciones
                     gbp_post_name = "N/A"
                     if isinstance(gbp_post, dict):
                         gbp_post_name = gbp_post.get("name", "N/A")
                     supabase.table("gbp_publicaciones").insert({
-                        "location_name": location_name,
+                        "location_name": full_location_name,
                         "nombre_nora": nombre_nora,
                         "tipo": "FROM_FACEBOOK",
                         "estado": "publicada",
@@ -294,12 +357,13 @@ def run(ctx=None):
                             logger.info(f"📱 Notificación enviada para {post_id} en {nombre_display} ({contenido_icon})")
                         
                         # 📱 TAMBIÉN ENVIAR POR WHATSAPP
-                        whatsapp_phone = os.getenv("WHATSAPP_ALERT_PHONE", "5216629360887")
+                        whatsapp_phone = settings.whatsapp.alert_phone or DEFAULT_WHATSAPP_ALERT_PHONE
                         if whatsapp_phone:
                             enviar_alerta_whatsapp(
                                 phone=whatsapp_phone,
                                 title=f"Google Maps - {nombre_display}",
-                                message=mensaje_notif
+                                message=mensaje_notif,
+                                settings=settings,
                             )
                     except Exception as e:
                         logger.warning(f"⚠️ Error enviando notificación: {e}")
@@ -321,16 +385,30 @@ def run(ctx=None):
                 
                 except Exception as e:
                     error_msg = str(e)
-                    logger.error(f"Error publicando en {location_name}: {error_msg}")
+                    logger.error(f"Error publicando en {full_location_name}: {error_msg}")
                     
-                    # Si es error 404, la ubicación no existe - marcar como inactiva
+                    # Solo marcar como inactiva si:
+                    # 1. El error es 404 Not Found
+                    # 2. El location_name ya es formato completo (accounts/.../locations/...)
+                    # 3. El full_location_name coincide con location_name (no fue construido)
+                    # Esto evita desactivar por errores de construcción del path
                     if "404" in error_msg and "Not Found" in error_msg:
-                        logger.warning(f"Ubicación {location_name} no existe en GBP, marcando como inactiva")
-                        supabase.table("gbp_locations").update({"activa": False}).eq("location_name", location_name).execute()
+                        es_formato_completo = (
+                            isinstance(location_name, str) and 
+                            location_name.startswith("accounts/") and 
+                            "/locations/" in location_name
+                        )
+                        
+                        if es_formato_completo and full_location_name == location_name:
+                            logger.warning(f"⚠️  Ubicación {full_location_name} no existe en GBP (404 confirmado), marcando como inactiva")
+                            supabase.table("gbp_locations").update({"activa": False}).eq("location_name", location_name).execute()
+                        else:
+                            logger.warning(f"⚠️  Error 404 en {full_location_name}, pero no se marca inactiva (posible error de construcción)")
+                            logger.warning(f"   location_name={location_name} | full={full_location_name} | formato_completo={es_formato_completo}")
                     
                     # Registrar error en gbp_publicaciones
                     supabase.table("gbp_publicaciones").insert({
-                        "location_name": location_name,
+                        "location_name": full_location_name,
                         "nombre_nora": nombre_nora,
                         "tipo": "FROM_FACEBOOK",
                         "estado": "error",

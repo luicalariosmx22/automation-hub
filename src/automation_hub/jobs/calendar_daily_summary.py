@@ -15,6 +15,7 @@ if env_path.exists():
     load_dotenv(env_path)
 
 from automation_hub.config.logging import setup_logging
+from automation_hub.config.settings import load_settings
 from automation_hub.db.supabase_client import create_client_from_env
 from automation_hub.db.repositories.alertas_repo import crear_alerta
 from automation_hub.integrations.telegram.notifier import TelegramNotifier
@@ -58,6 +59,7 @@ def run():
     logger.info("=== Iniciando resumen diario de citas ===")
     
     try:
+        settings = load_settings()
         nombre_nora = os.getenv("NOMBRE_NORA", "aura")
         supabase = create_client_from_env()
         
@@ -69,6 +71,7 @@ def run():
         # PRIMERO: Sincronizar con Google Calendar para tener datos actualizados
         logger.info("Sincronizando con Google Calendar antes de generar resumen...")
         try:
+            settings = load_settings()
             google_sync = GoogleCalendarSyncService(nombre_nora)
             status = google_sync.get_connection_status()
             
@@ -190,7 +193,7 @@ def run():
         )
         
         # Enviar a todo el equipo por Telegram usando bot de citas
-        bot_token_citas = os.getenv("TELEGRAM_BOT_TOKEN_CITAS", "8556035050:AAF9guBOOEFnMjObUqTMpq-TtvpytUR-IZI")
+        bot_token_citas = settings.telegram.citas_bot_token or settings.telegram.bot_token
         notifier = TelegramNotifier(bot_token=bot_token_citas)
         
         # Obtener destinatarios activos
@@ -199,19 +202,22 @@ def run():
             .eq('activo', True) \
             .execute()
         
-        destinatarios = destinatarios_response.data or []
+        destinatarios_data = destinatarios_response.data or []
+        destinatarios: list[dict] = [d for d in destinatarios_data if isinstance(d, dict)]
         
         if destinatarios:
             for dest in destinatarios:
                 chat_id = dest.get('chat_id')
+                if not isinstance(chat_id, str):
+                    continue
                 notifier.enviar_mensaje(mensaje, chat_id=chat_id)
-                logger.info(f"Resumen enviado a chat {chat_id}")
+                logger.info("Resumen enviado a chat %s", chat_id)
         else:
             # Fallback al chat por defecto
             notifier.enviar_mensaje(mensaje)
         
         # 📱 ENVIAR TAMBIÉN POR WHATSAPP
-        whatsapp_phone = os.getenv("WHATSAPP_ALERT_PHONE", "5216629360887")
+        whatsapp_phone = settings.whatsapp.alert_phone or os.getenv("WHATSAPP_ALERT_PHONE")
         if whatsapp_phone:
             enviar_alerta_whatsapp(
                 phone=whatsapp_phone,
@@ -227,6 +233,7 @@ def run():
         
         # Crear alerta de error
         try:
+            settings = load_settings()
             supabase = create_client_from_env()
             nombre_nora = os.getenv("NOMBRE_NORA", "aura")
             
@@ -245,7 +252,7 @@ def run():
                 datos={"error": str(e), "job": "calendar.daily.summary"}
             )
             
-            bot_token_citas = os.getenv("TELEGRAM_BOT_TOKEN_CITAS", "8556035050:AAF9guBOOEFnMjObUqTMpq-TtvpytUR-IZI")
+            bot_token_citas = settings.telegram.citas_bot_token or settings.telegram.bot_token
             notifier = TelegramNotifier(bot_token=bot_token_citas)
             notifier.enviar_mensaje(mensaje_error)
         except:

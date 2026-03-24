@@ -19,6 +19,7 @@ from automation_hub.integrations.meta_ads.accounts import (
 from automation_hub.integrations.meta_ads.token_resolver import resolve_meta_token
 from automation_hub.db.repositories.alertas_repo import crear_alerta
 from automation_hub.integrations.telegram.notifier import notificar_alerta_telegram, TelegramNotifier
+from automation_hub.config.settings import load_settings
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +170,8 @@ def sincronizar_paginas_facebook(access_token: str, supabase) -> dict:
                         logger.info(f"  📱 Notificación enviada para nueva página: {page_name}")
                         
                         # 📱 TAMBIÉN ENVIAR POR WHATSAPP
-                        whatsapp_phone = os.getenv("WHATSAPP_ALERT_PHONE", "5216629360887")
+                        settings = load_settings()
+                        whatsapp_phone = settings.whatsapp.alert_phone or os.getenv("WHATSAPP_ALERT_PHONE")
                         if whatsapp_phone:
                             enviar_alerta_whatsapp(
                                 phone=whatsapp_phone,
@@ -204,9 +206,14 @@ def run(ctx=None):
     """
     logger.info(f"Iniciando job: {JOB_NAME}")
     
-    # Obtener configuración
+    settings = load_settings()
     nombre_nora = os.getenv("META_ADS_NOMBRE_NORA")  # Opcional
-
+    access_token = settings.meta.ads_access_token or os.getenv("META_ADS_ACCESS_TOKEN")
+    
+    if not access_token:
+        logger.error("META_ADS_ACCESS_TOKEN no configurado")
+        return
+    
     # Crear cliente Supabase
     supabase = create_client_from_env()
 

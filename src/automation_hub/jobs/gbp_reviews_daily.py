@@ -3,13 +3,15 @@ Job para sincronizar reviews diarias de Google Business Profile.
 """
 import logging
 import os
+from typing import Any
 from automation_hub.integrations.google.oauth import get_bearer_header
 from automation_hub.integrations.gbp.reviews_v4 import list_all_reviews, map_review_to_row
 from automation_hub.db.supabase_client import create_client_from_env
-from automation_hub.db.repositories.gbp_locations_repo import fetch_active_locations
+from automation_hub.db.repositories.gbp_locations_repo import fetch_active_locations, get_last_review_sync_times
 from automation_hub.db.repositories.gbp_reviews_repo import upsert_reviews
 from automation_hub.db.repositories.alertas_repo import crear_alerta
 from automation_hub.integrations.telegram.notifier import notificar_alerta_telegram, TelegramNotifier
+from automation_hub.config.settings import load_settings
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,11 @@ def run(ctx=None):
         logger.warning("No se encontraron locaciones activas")
         return
     
+    # Obtener últimas fechas de sincronización por ubicación
+    logger.info("Obteniendo últimas fechas de sincronización de reviews")
+    last_sync_times = get_last_review_sync_times(supabase)
+    logger.info(f"Fechas de sincronización obtenidas para {len(last_sync_times)} ubicaciones")
+    
     # Procesar cada locación
     total_nuevas = 0
     total_replies = 0
@@ -59,7 +66,12 @@ def run(ctx=None):
         location_name = location.get("location_name")
         nombre_nora_loc = location.get("nombre_nora") or "Sistema"
         api_id = location.get("api_id")  # Puede ser None si no existe
-        location_title = location.get("title") or location_name.split("/")[-1]
+        location_title = location.get("title")
+        if not location_title and isinstance(location_name, str):
+            parts = location_name.split("/")
+            location_title = parts[-1] if parts else location_name
+        elif not location_title:
+            location_title = "Ubicación"
         
         if not account_name or not location_name:
             logger.warning(f"Locación sin account_name o location_name: {location}")
@@ -68,11 +80,17 @@ def run(ctx=None):
         # Construir parent path completo: accounts/{account_id}/locations/{location_id}
         parent_location_name = f"{account_name}/{location_name}"
         
+        # Obtener fecha de última sincronización para esta ubicación
+        since_date = last_sync_times.get(parent_location_name)
+        
         try:
-            logger.info(f"Procesando reviews para: {parent_location_name}")
+            if since_date:
+                logger.info(f"Procesando reviews para {parent_location_name} desde {since_date}")
+            else:
+                logger.info(f"Procesando reviews para {parent_location_name} (primera sincronización)")
             
-            # Descargar reviews
-            reviews_raw = list_all_reviews(parent_location_name, auth_header)
+            # Descargar reviews (solo las nuevas si tenemos fecha)
+            reviews_raw = list_all_reviews(parent_location_name, auth_header, since_date)
             
             if not reviews_raw:
                 logger.info(f"No hay reviews para {parent_location_name}")
@@ -121,7 +139,8 @@ def run(ctx=None):
                         reviews_malas_detalle.append(review_mala)
                 else:
                     # Review existente - solo actualizar si hay reply nuevo
-                    old_reply = existing.data[0].get("reply_comment")
+                    existing_row = existing.data[0] if isinstance(existing.data, list) and existing.data else {}
+                    old_reply = existing_row.get("reply_comment") if isinstance(existing_row, dict) else None
                     new_reply = review_data.get("reply_comment")
                     
                     if new_reply and new_reply != old_reply:
@@ -222,7 +241,7 @@ def run(ctx=None):
         )
         
         # Notificar por Telegram con detalle
-        datos_telegram = {
+        datos_telegram: dict[str, Any] = {
             "Reviews Nuevas": total_nuevas,
             "Respuestas Nuevas": total_replies,
             "Locaciones Procesadas": len(locations)
@@ -233,24 +252,39 @@ def run(ctx=None):
         
         # Agregar detalle de locaciones con nuevas
         if locaciones_con_nuevas:
-            locaciones_str = ", ".join([f"{loc['nombre']} ({loc['cantidad']})" for loc in locaciones_con_nuevas[:5]])
+            locaciones_str_parts: list[str] = []
+            for loc in locaciones_con_nuevas[:5]:
+                nombre_loc = loc.get('nombre', 'Ubicación')
+                cantidad_loc = loc.get('cantidad', 0)
+                locaciones_str_parts.append(f"{nombre_loc} ({cantidad_loc})")
+            locaciones_str = ", ".join(locaciones_str_parts)
             if len(locaciones_con_nuevas) > 5:
                 locaciones_str += f" y {len(locaciones_con_nuevas) - 5} más"
-            datos_telegram["Nuevas en"] = locaciones_str
+            datos_telegram["detalle_nuevas"] = locaciones_str
         
         # Agregar detalle de locaciones con replies
         if locaciones_con_replies:
-            replies_str = ", ".join([f"{loc['nombre']} ({loc['cantidad']})" for loc in locaciones_con_replies[:5]])
+            replies_parts: list[str] = []
+            for loc in locaciones_con_replies[:5]:
+                nombre_loc = loc.get('nombre', 'Ubicación')
+                cantidad_loc = loc.get('cantidad', 0)
+                replies_parts.append(f"{nombre_loc} ({cantidad_loc})")
+            replies_str = ", ".join(replies_parts)
             if len(locaciones_con_replies) > 5:
                 replies_str += f" y {len(locaciones_con_replies) - 5} más"
-            datos_telegram["Respuestas en"] = replies_str
+            datos_telegram["detalle_respuestas"] = replies_str
         
         # Agregar detalle de locaciones con malas reviews
         if locaciones_con_malas:
-            malas_str = ", ".join([f"{loc['nombre']} ({loc['cantidad']})" for loc in locaciones_con_malas[:5]])
+            malas_parts: list[str] = []
+            for loc in locaciones_con_malas[:5]:
+                nombre_loc = loc.get('nombre', 'Ubicación')
+                cantidad_loc = loc.get('cantidad', 0)
+                malas_parts.append(f"{nombre_loc} ({cantidad_loc})")
+            malas_str = ", ".join(malas_parts)
             if len(locaciones_con_malas) > 5:
                 malas_str += f" y {len(locaciones_con_malas) - 5} más"
-            datos_telegram["🚨 Malas en"] = malas_str
+            datos_telegram["detalle_malas"] = malas_str
         
         # Agregar información detallada de reviews malas para Telegram
         if reviews_malas_detalle:
@@ -268,12 +302,13 @@ def run(ctx=None):
             if len(reviews_malas_detalle) > 3:
                 mensaje_reviews_malas += f"\n... y {len(reviews_malas_detalle) - 3} reviews malas más"
                 
-            datos_telegram["Detalle Reviews Malas"] = mensaje_reviews_malas
+            datos_telegram["detalle_reviews_malas"] = mensaje_reviews_malas
         
-        # Notificar por Telegram usando bot de notificaciones
-        bot_token = "8488045829:AAF5hEBfqe1BgUg3ninX24M15FeeDcS3NkE"
-        chat_id = "5674082622"
-        notifier = TelegramNotifier(bot_token=bot_token, default_chat_id=chat_id)
+        settings = load_settings()
+        notifier = TelegramNotifier(
+            bot_token=settings.telegram.bot_token,
+            default_chat_id=settings.telegram.default_chat_id,
+        )
         
         # Determinar ícono y prioridad para Telegram
         if total_malas_nuevas > 0:

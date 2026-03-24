@@ -2,9 +2,11 @@
 Cliente de Telegram para enviar notificaciones de alertas.
 """
 import logging
-import os
-import requests
 from typing import Optional, Dict, Any, List
+
+import requests
+
+from automation_hub.config.settings import load_settings
 
 logger = logging.getLogger(__name__)
 
@@ -25,18 +27,29 @@ class TelegramNotifier:
         if bot_nombre and not bot_token:
             try:
                 from automation_hub.db.supabase_client import create_client_from_env
+
                 supabase = create_client_from_env()
-                result = supabase.table("telegram_bots").select("token").eq("nombre", bot_nombre).eq("activo", True).single().execute()
-                if result.data:
-                    bot_token = result.data.get("token")
-                    logger.info(f"Bot '{bot_nombre}' cargado desde BD")
+                result = (
+                    supabase.table("telegram_bots")
+                    .select("token")
+                    .eq("nombre", bot_nombre)
+                    .eq("activo", True)
+                    .single()
+                    .execute()
+                )
+                if isinstance(result.data, dict):
+                    token_from_db = result.data.get("token")
+                    if token_from_db:
+                        bot_token = str(token_from_db)
+                        logger.info("Bot '%s' cargado desde BD", bot_nombre)
                 else:
-                    logger.warning(f"Bot '{bot_nombre}' no encontrado en BD, usando env var")
+                    logger.warning("Bot '%s' no encontrado en BD, usando settings/env", bot_nombre)
             except Exception as e:
-                logger.warning(f"Error cargando bot desde BD: {e}, usando env var")
+                logger.warning("Error cargando bot desde BD: %s, usando settings/env", e)
         
-        self.bot_token = bot_token or os.getenv("TELEGRAM_BOT_TOKEN")
-        self.default_chat_id = default_chat_id or os.getenv("TELEGRAM_CHAT_ID")
+        settings = load_settings()
+        self.bot_token = bot_token or settings.telegram.bot_token
+        self.default_chat_id = default_chat_id or settings.telegram.default_chat_id
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}"
     
     def enviar_mensaje(
